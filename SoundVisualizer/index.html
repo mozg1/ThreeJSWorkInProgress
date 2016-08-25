@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>ThreeJS Sound Visualizer</title>
+    <meta about="Alexander Zorin 7. Fachsemester 798493 Medieninformatik FBVI Beuth-Hochschule für Techik Berlin">
+
+    <script data-main="app.js" src="../lib/require.js"></script>
+    <!--
+    <script type="text/javascript" src="javascript/audioscript/audio.js"></script>
+    -->
+    <script type="text/javascript" src="javascript/audioscript/mainaudiohandler.js"></script>
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/style.css">
+
+</head>
+<body width="1920" height="870">
+
+    <div id="overlay">
+
+        <div id="loadingcontent">
+            <h3>loading . . .</h3>
+            <div id="spinner"></div>
+            <h4>This site is best viewed at a resolution of 1920x1080</h4>
+        </div>
+
+        <span id="title">
+            <p id="titleText">ThreeJS SOUND VISUALIZER</p>
+        </span>
+
+        <div id="inputChooser">
+            <div id="dropTrack" class="songButton" >
+                Drop Track
+                <!--
+                <input type="file" id="file" name="MP3File"/>
+                -->
+            </div>
+            <button id="microphone" class="micButton">
+                Use Mic
+            </button>
+            <button id="playNormlicht" class="songButton">
+                Sample Track
+            </button>
+        </div>
+
+        <span id="impress">
+            <p id="impressText">Built with ThreeJS, RequireJS and JQuery. Music by Normlicht</p>
+        </span>
+
+    </div>
+    <div id="drawing_container">
+
+    </div>
+
+    <div id="controls">
+
+        <div id="songRange">
+            <div id="rangeSlider"></div>
+        </div>
+
+        <button id="playAudio">Play</button>
+
+        <div id="volumecontrol">
+            <div id="volumeSlider"></div>
+        </div>
+
+        <button id="chooseInput">Select Input</button>
+
+    </div>
+</body>
+</html>

@@ -1,0 +1,110 @@
+body {
+    background-color:black;
+    margin:0;
+}
+
+#drawing_container {
+    width: 1720px;
+    height:870px;
+    position:relative;
+    margin:0;
+}
+
+#overlay {
+    width: 1920px;
+    height:870px;
+    position:absolute;
+    background-color:black;
+    z-index:10;
+}
+
+#loadingcontent {
+    width:25%;
+    height:100px;
+    margin:20% auto;
+    color: white;
+    text-align:center;
+    display:none;
+}
+
+#inputChooser {
+    margin: 0 auto;
+    text-align:center;
+    color:white;
+    width:20%;
+    height:100px;
+    display:none;
+}
+
+#inputChooser > button, #dropTrack {
+    margin:10px;
+    border:2px;
+    border-color: gray;
+    border-style: solid;
+    height:55px;
+    background-color:black;
+    color: white;
+}
+
+#inputChooser > button:hover {
+    cursor:pointer;
+}
+
+#controls {
+    border:0;
+    width:295px;
+    height:75px;
+    margin:0 auto;
+    display:none;
+}
+
+#controls > button {
+    float:left;
+    margin:10px;
+    border:2px;
+    border-color: gray;
+    border-style: solid;
+    width:100px;
+    height:55px;
+    background-color:black;
+    color: white;
+}
+
+#controls > button:hover {
+    cursor:pointer;
+}
+
+#volumecontrol {
+    margin-top:10px;
+    background-image:  url(img/volume2.png);
+    width:55px;
+    height:55px;
+    float:left;
+}
+
+p {
+    display: none;
+    text-align:center;
+}
+
+#title {
+    margin:0 auto;
+    font-size:150px;
+    width:1500px;
+    height:180px;
+    color:white;
+}
+
+#impress {
+    color:white;
+    width:300px;
+    height:10px;
+}
+
+#impressText {
+    margin:3%;
+}
+
+canvas {
+    z-index:9;
+}
