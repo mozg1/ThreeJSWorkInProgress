@@ -15,56 +15,58 @@
 </head>
 <body width="1920" height="870">
 
-    <div id="overlay">
+<div id="overlay">
 
-        <div id="loadingcontent">
-            <h3>loading . . .</h3>
-            <div id="spinner"></div>
-            <h4>This site is best viewed at a resolution of 1920x1080</h4>
-        </div>
+    <div id="loadingcontent">
+        <h3>loading . . .</h3>
+        <h4>This site is best viewed at a resolution of 1920x1080</h4>
+    </div>
 
         <span id="title">
             <p id="titleText">ThreeJS SOUND VISUALIZER</p>
         </span>
 
-        <div id="inputChooser">
-            <div id="dropTrack" class="songButton" >
-                Drop Track
-                <!--
-                <input type="file" id="file" name="MP3File"/>
-                -->
-            </div>
-            <button id="microphone" class="micButton">
-                Use Mic
-            </button>
-            <button id="playNormlicht" class="songButton">
-                Sample Track
-            </button>
+    <div id="spinner">
+        <p class="spinnerDot" id="spinnerDot1"></p>
+        <p class="spinnerDot" id="spinnerDot2"></p>
+        <p class="spinnerDot" id="spinnerDot3"></p>
+    </div>
+
+    <div id="inputChooser">
+        <div id="dropTrack" class="songButton"
+             ondragenter="event.stopPropagation(); event.preventDefault();"
+             ondragover="document.getElementById('dropTrack').style.backgroundColor = '#d3d3d3'; event.stopPropagation(); event.preventDefault();"
+             ondragleave="document.getElementById('dropTrack').style.backgroundColor = '#000000'; event.stopPropagation(); event.preventDefault();"
+             ondrop="document.getElementById('dropTrack').style.backgroundColor = '#000000'; event.stopPropagation(); event.preventDefault();">
+            <div id="dropTextTitle">Drag & Drop Track</div>
         </div>
+        <button id="microphone" class="micButton">
+            Use Mic
+        </button>
+        <button id="playNormlicht" class="songButton">
+            Sample Track
+        </button>
+    </div>
 
         <span id="impress">
-            <p id="impressText">Built with ThreeJS, RequireJS and JQuery. Music by Normlicht</p>
+            <p id="impressText">Built with ThreeJS, RequireJS and JQuery. Music by <a href="https://soundcloud.com/normlicht">Normlicht</a></p>
         </span>
 
+</div>
+<div id="drawing_container">
+
+</div>
+
+<div id="controls">
+
+    <button id="playAudio">Start</button>
+
+    <div id="volumecontrol">
+        <!--          <input type="range" id="volumeSlider" value="60"></div> -->
     </div>
-    <div id="drawing_container">
 
-    </div>
+    <button id="chooseInput">Select Input</button>
 
-    <div id="controls">
-
-        <div id="songRange">
-            <div id="rangeSlider"></div>
-        </div>
-
-        <button id="playAudio">Play</button>
-
-        <div id="volumecontrol">
-            <div id="volumeSlider"></div>
-        </div>
-
-        <button id="chooseInput">Select Input</button>
-
-    </div>
+</div>
 </body>
 </html>

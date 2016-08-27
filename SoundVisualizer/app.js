@@ -128,26 +128,34 @@ define(["jquery", "three", "scene", "controller"],
 
             }, 3000);
 
-/*
-            $(".songButton").click((function () {
-                $("#overlay").fadeOut("slow", function () {
-                    if($("#playAudio").css('display') == 'none') {
-
-                        $("#controls").fadeIn("slow");
-                        $("#playAudio").attr('disabled', false).fadeIn("slow")
-
-                    } else {
-                        $("#controls").fadeIn("slow");
-                    }
-                });
-            }));
-*/
             $("#playNormlicht").click((function () {
                 closeOverlay();
-                loadSampleAudio();
+                loadSampleTrack();
             }));
 
             function closeOverlay() {
+
+                if(readyToPlay!==1) {
+                    for(let i=1;i<4;i++) {
+
+                        // http://stackoverflow.com/questions/3583724/how-do-i-add-a-delay-in-a-javascript-loop 13
+
+                        setTimeout(function() {
+                            if($("#spinnerDot"+i).css('display', 'none')) {
+                                $("#spinnerDot"+i).fadeIn("slow");
+                            } else {
+                                $("#spinnerDot"+i).fadeOut("slow");
+                            }
+                        }, 333*i);
+
+                    }
+
+                    setTimeout(closeOverlay, 1000);
+                    return;
+                }
+
+                $(".spinnerDot").fadeOut("slow");
+
                 $("#overlay").fadeOut("slow", function () {
                     if($("#playAudio").css('display') == 'none') {
 
@@ -160,50 +168,58 @@ define(["jquery", "three", "scene", "controller"],
                 });
             }
 
+            var dropDiv = document.getElementById("dropTrack");
+            dropDiv.addEventListener("drop", dropTrack, false);
+
             function dropTrack (event) {
+
                 event.stopPropagation();
                 event.preventDefault();
-        //        var droppedFiles =  event.currentTarget.files || event.target.files || (event.dataTransfer && event.dataTransfer.files);
-                var droppedFiles = document.getElementById('dropTrack').files;
-                console.log(document.getElementById('dropTrack').files);
 
-                var reader = new FileReader();
+                var dT = event.dataTransfer;
+                console.log(dT);
 
-                reader.onload = function(fileEvent) {
-                    var data = fileEvent.target.result;
-                    dataAudioBuffer(data);
-                };
+                var droppedFiles = dT.files;
 
-                reader.readAsArrayBuffer(droppedFiles[0]);
+                // prevent user misuse
+                if(droppedFiles.length > 1) {
+                    droppedFiles = droppedFiles.slice(0,1);
+                }
 
-                closeOverlay();
+                var fileEnding = droppedFiles[0].name.substr(droppedFiles[0].name.lastIndexOf('.')+1);
+                console.log(fileEnding);
+
+                if(fileEnding == "mp3" || fileEnding == "wav" || fileEnding == "ogg") {
+
+                    console.log(droppedFiles[0]);
+
+                    var reader = new FileReader();
+
+                    reader.onload = function(fileEvent) {
+                        var data = fileEvent.target.result;
+                        dataAudioBuffer(data);
+                    };
+
+                    reader.readAsArrayBuffer(droppedFiles[0]);
+
+                    closeOverlay();
+                } else {
+                    alert("Sorry, this file-type is unsupported");
+                    droppedFiles = [];
+                    return;
+                }
 
             }
 
-            $("#dropTrack").on("drop", function(event) {
-                event.preventDefault();
-                event.stopPropagation();
-                dropTrack(event)
-            });
-
-            $("#dropTrack").on("dragover", function(event) {
-                event.preventDefault();
-                event.stopPropagation();
-                $("#dropTrack").css('background-color', 'white');
-            });
-
-            $("#dropTrack").on("dragleave", function(event) {
-                event.preventDefault();
-                event.stopPropagation();
-                $("#dropTrack").css('background-color', 'black');
-            });
-
             $("#microphone").click((function () {
-                $("#volumecontrol").fadeIn("slow");
-                $("#chooseInput").fadeIn("slow");
-
-                setMicrophone();
+                if(setMicrophone()) {
+                    closeOverlay();
+                }
             }));
+
+            $("#volumecontrol").click(function() {
+                mute();
+            } );
 
         })); // $(document).ready()
 

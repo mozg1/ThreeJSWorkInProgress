@@ -27,6 +27,18 @@ body {
     display:none;
 }
 
+#title {
+    margin:0 auto;
+    font-size:150px;
+    width:1500px;
+    height:100px;
+    color:white;
+}
+
+#titleText {
+    margin: 120px;
+}
+
 #inputChooser {
     margin: 0 auto;
     text-align:center;
@@ -43,11 +55,39 @@ body {
     border-style: solid;
     height:55px;
     background-color:black;
-    color: white;
 }
 
-#inputChooser > button:hover {
-    cursor:pointer;
+#dropTextTitle {
+    color: white;
+    margin: 16px auto;
+
+}
+
+#dropTextTitle:hover {
+    color: #d3d3d3;
+}
+
+
+#spinner {
+    text-align:center;
+    margin:20px auto;
+    width:150px;
+    height:50px;
+    z-index: 6;
+    position:relative;
+    top: -50px;
+}
+
+.spinnerDot {
+    float:left;
+    background-color:white;
+    margin:5px;
+    height:40px;
+    width:40px;
+    -moz-border-radius: 50px;
+    -webkit-border-radius: 50px;
+    border-radius: 50px;
+
 }
 
 #controls {
@@ -67,11 +107,6 @@ body {
     width:100px;
     height:55px;
     background-color:black;
-    color: white;
-}
-
-#controls > button:hover {
-    cursor:pointer;
 }
 
 #volumecontrol {
@@ -82,18 +117,59 @@ body {
     float:left;
 }
 
+#volumecontrol:hover {
+    cursor:pointer;
+}
+
+/*
+#volumeSlider {
+	position:absolute;
+	transform: rotate(90deg);
+	float:right;
+	margin-right:10px;
+	margin-bottom:105px;
+	width:100px;
+	height:20p:
+}
+*/
+
+button {
+    color: white;
+}
+
+button:hover {
+    cursor:pointer;
+    color: #d3d3d3;
+}
+
+a {
+    color: white;
+}
+
+a:hover {
+    color: #d3d3d3;
+}
+
+div {
+    -webkit-user-select: none; /* Chrome/Safari */
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* IE10+ */
+
+    /* Rules below not implemented in browsers yet */
+    -o-user-select: none;
+    user-select: none;
+}
+
+div:hover {
+    cursor: default;
+}
+
 p {
     display: none;
     text-align:center;
 }
 
-#title {
-    margin:0 auto;
-    font-size:150px;
-    width:1500px;
-    height:180px;
-    color:white;
-}
+
 
 #impress {
     color:white;
@@ -102,7 +178,7 @@ p {
 }
 
 #impressText {
-    margin:3%;
+    margin-top:7%;
 }
 
 canvas {
