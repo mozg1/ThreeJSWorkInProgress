@@ -16,13 +16,13 @@ define(["three", "shaders"],
             var uniforms = {
                 amplitude: { value: 1.0 },
                 time: {type: "f", value: 0.0},
-                color: { value: new THREE.Color(0xffffff) }
+                color: { value: new THREE.Color(0x000000) }
             };
 
             var shaderMaterial = new THREE.ShaderMaterial({
                 uniforms: uniforms,
-                fragmentShader: Shaders.getFragmentShader('line'),
-                vertexShader: Shaders.getVertexShader('line'),
+                fragmentShader: Shaders.getFragmentShader('frontobject'),
+                vertexShader: Shaders.getVertexShader('frontobject'),
                 wireframe: true,
                 opacity: 0.5,
                 transparent: true

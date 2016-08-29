@@ -12,12 +12,14 @@
 define([
         "text!shaders/sphereshader_vs.glsl",          "text!shaders/sphereshader_fs.glsl",
         "text!shaders/lineshader_vs.glsl",          "text!shaders/lineshader_fs.glsl",
-        "text!shaders/floorshader_vs.glsl",         "text!shaders/floorshader_fs.glsl"
+        "text!shaders/floorshader_vs.glsl",         "text!shaders/floorshader_fs.glsl",
+        "text!shaders/frontobject_vs.glsl",         "text!shaders/frontobject_fs.glsl"
     ],
     (function(
                vs_sphereshader,       fs_sphereshader,
                vs_lineshader,       fs_lineshader,
-               vs_floorshader,       fs_floorshader
+               vs_floorshader,       fs_floorshader,
+               vs_frontobject,       fs_frontobject
 
     ) {
 
@@ -28,6 +30,7 @@ define([
         shaders["sphere"] = {vertex: vs_sphereshader, fragment: fs_sphereshader};
         shaders["line"] = {vertex: vs_lineshader, fragment: fs_lineshader};
         shaders["floor"] = {vertex: vs_floorshader, fragment: fs_floorshader};
+        shaders["frontobject"] = {vertex: vs_frontobject, fragment: fs_frontobject};
 
         // return source code of a vertex shader
         shaders.getVertexShader = function(shadername) {

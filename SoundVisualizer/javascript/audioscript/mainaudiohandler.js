@@ -27,6 +27,7 @@ function createSource() {
     source = audioContext.createBufferSource();
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 16384;
+    analyser.smoothingTimeConstant = 0.9;
 
     gainNode = audioContext.createGain();
 
@@ -160,4 +161,33 @@ function setReadyState(){
     levels = [];
     readyToPlay = 1;
     console.log(readyToPlay);
+}
+
+function getSongLength() {
+    if(audioBuffer) {
+        return audioBuffer.duration;
+    }
+}
+
+/**
+ *
+ * @param analyser - analyserNode
+ * @param fftBins - freqByteData array
+ * @returns maxVolume in current frequency bin
+ */
+
+function getMaxVolume(analyser, fftBins) {
+    if(analyser) {
+        var maxVolume = -Infinity;
+        analyser.getFloatFrequencyData(fftBins);
+
+        for (var i = 4, ii = fftBins.length; i < ii; i++) {
+            if (fftBins[i] > maxVolume && fftBins[i] < 0) {
+                maxVolume = fftBins[i];
+            }
+        }
+
+        return maxVolume;
+    }
+
 }

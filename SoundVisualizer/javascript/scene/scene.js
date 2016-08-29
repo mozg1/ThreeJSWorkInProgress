@@ -69,14 +69,15 @@ define(["three",
             //front light
             var light2 = new THREE.PointLight(0xFFFFFF, 1, 100);
             scope.scene.add(light2);
-/*
+
             // -900, 100, 350
             var light3 = new THREE.PointLight(0xFFFFFF, 1, 1000);
+            light3.position.set(0,100,-1500);
 
             var light4 = new THREE.PointLight(0xffffff,1,100);
             light4.position.set(0,0,-1500);
             scope.scene.add(light4);
-*/
+
             this.planetLight = function(){
 
                 var color = new THREE.Color(1,1,1);
@@ -133,7 +134,6 @@ define(["three",
                 scope.scene.add(scope.currentMesh);
 
                 //         console.log(position);
-
                 //         console.log(bufferGeometry);
 
                 objectArray[objectCount++] = bufferGeometry;
@@ -146,12 +146,16 @@ define(["three",
                 particles: []
             };
 
+            var levelHistory = [];
+
+
             this.animate = function () {
 
                 if(!readyToPlay) {
                     return;
                 }
 
+                getContinuousAudioData();
                 setLevel();
 
                 animateSphere();
@@ -167,51 +171,9 @@ define(["three",
                 shootRays();
                 animateShapes();
                 animateCircleWaves();
-
                 removeObjects();
-
-                /*
-                                if(hasParticles && particleArray.particles.length < 1000) {
-                                    console.log("oh-oh");
-                                    var that = this;
-
-                                    setTimeout(function(){
-                                        // http://stackoverflow.com/questions/5875402/how-to-call-this-function-within-settimeout-in-js
-                                        that.createDots();
-                                        console.log("jaawohl");
-                                    }, 1000);
-                                }
-                                */
-
-
-                // level 7
-                /*
-                if(!mustAnimate) {
-                    shootIYFParticles();
-                }
-                */
-/*
-                // level 3
-                if(cameraMoving) {
-                    if(levelThreeActive) {
-                        rotateCameraZ();
-                    }
-
-                    if(levelSixActive) {
-                        animateCamera();
-                    }
-                }
-                */
-
                 detectKick();
                 checkForLevels();
-
-
-
-   //             moveFloor();
-   //             showChildren();
-
-
 
 
             };
@@ -219,6 +181,28 @@ define(["three",
             function getActiveLevels() {
 
             }
+
+            var L0 = 0;
+            var L1 = 1;
+            var L2 = 2;
+            var L3 = 3;
+            var L4 = 4;
+            var L5 = 5;
+            var L6 = 6;
+            var L7 = 7;
+            var L8 = 8;
+            var L9 = 9;
+
+            function checkforPeaks() {
+                // make sure only the last 5 levels are present
+                if(levelHistory.length > 5) {
+                    levelHistory.splice(0,1);
+                }
+                if(levelHistory[4] > levelHistory[3] && levelHistory[3] > levelHistory[2] && levelHistory[2] > levelHistory[1]) {
+
+                }
+            }
+
 
             function checkForLevels() {
                 /*
@@ -236,28 +220,50 @@ define(["three",
 */
                 if(levelZero) { // dunkelblau
                     levelZeroActive = true;
+                    console.log("level 0 ");
+                    levelHistory.push(L0);
+
                 }
                 if(levelOne) { // hellblau
                     levelOneActive = true;
+                    console.log("level 1");
                     //              scope.createCurves();
+                    levelHistory.push(L1);
+
                 }
                 if(levelTwo) { // grünblau
                     levelTwoActive = true;
                     scope.create3DNoise();
+
+                    console.log("level 2");
+                    levelHistory.push(L2);
+
                 }
                 if(levelThree) { // hellgrün
                     scope.createBackgroundNoise();
                     levelThreeActive = true;
+
+                    console.log("level 3");
+                    levelHistory.push(L3);
+
                 }
                 if(levelFour) { // grün
                     deleteCircleWaves();
                     scope.createDots();
                     //              scope.createRays();
                     levelFourActive = true;
+
+                    console.log("level 4");
+                    levelHistory.push(L4);
+
                 }
                 if(levelFive) { // grüngelb
                     scope.createPlanes();
                     levelFiveActive = true;
+
+                    console.log("level 5");
+                    levelHistory.push(L5);
+
                 }
                 if(levelSix) { // gelb
                     scope.createShapes();
@@ -266,26 +272,38 @@ define(["three",
                     // disconnect shapes
                     // change background particle movement
                     levelSixActive = true;
+
+                    console.log("level 6");
+                    levelHistory.push(L6);
+
                 }
                 if(levelSeven) { // orange
                     scope.createCircleWaves();
 
                     // connect shapes
                     levelSevenActive = true;
+
+                    console.log("level 7");
+                    levelHistory.push(L7);
+
                 }
                 if(levelEight) { // rot
                     // Spiralenwechsel
                     drawTimeDomain();
-                    console.log("LevelEightActive");
+                    console.log("Level 8");
                     levelEightActive = true;
+                    levelHistory.push(L8);
+
                 }
                 if(levelNine) { // lila
                     // Hauptfigur-wechsel
-                    console.log("levelNineActive");
+                    console.log("level 9");
                     levelNineActive = true;
+                    levelHistory.push(L9);
+
                 }
                 if(levelTen) { // öhhhhhhhh
-                    console.log("levelTenActive");
+                    console.log("level 10");
                     levelTenActive = true;
                 }
                 if(levelEleven) { // white
@@ -492,7 +510,7 @@ define(["three",
 
 
                 if(!fftLines ) {
-                    console.log("entered")
+                    console.log("entered");
                     scope.createFFTLines();
                 } else if(readyToPlay) {
 
@@ -512,6 +530,14 @@ define(["three",
                 }
             }
 
+            var audioData = getAudioFreqData();
+            var freqAverage = getFreqAverage(audioData);
+
+
+            function getContinuousAudioData() {
+                audioData = getAudioFreqData();
+                freqAverage = getFreqAverage(audioData);
+            }
 
             /**
              * object must be mesh
@@ -523,8 +549,7 @@ define(["three",
 
                 var displacement = mesh.geometry.attributes.displacement;
 
-                var audioData = getAudioFreqData();
-                var freqAverage = getFreqAverage(audioData);
+
 
                 if(mesh.name == "sphereMesh") {
                     if(freqAverage < 0.2) {
@@ -605,9 +630,6 @@ define(["three",
 
             function setLevel() {
 
-                var audioData = getAudioFreqData();
-                var freqAverage = getFreqAverage(audioData);
-
 
                 if(freqAverage < 0.1) {
                         levelZero = true;
@@ -624,48 +646,46 @@ define(["three",
                         levelOne = false;
                         levelThree = false;
 
-                    } else if (freqAverage >= 0.20 && freqAverage < 0.25) {
+                    } else if (freqAverage >= 0.20 && freqAverage < 0.24) {
 
                         levelThree = true;
                         levelTwo = false;
                         levelFour = false;
 
-                    } else if(freqAverage >= 0.25 && freqAverage < 0.30) {
+                    } else if(freqAverage >= 0.24 && freqAverage < 0.28) {
 
                         levelFour = true;
                         levelThree = false;
                         levelFive = false;
 
-                    } else if (freqAverage >= 0.30 && freqAverage < 0.33) {
+                    } else if (freqAverage >= 0.28 && freqAverage < 0.31) {
 
-                    //    if(!levelFiveActive) {
-                            levelFive = true;
-                    //    }
+                        levelFive = true;
                         levelFour = false;
                         levelSix = false;
-                    } else if(freqAverage >= 0.33 && freqAverage < 0.35) {
+                    } else if(freqAverage >= 0.31 && freqAverage < 0.33) {
 
                         levelSix = true;
                         levelFive = false;
                         levelSeven = false;
 
-                    } else if(freqAverage >= 0.35 && freqAverage < 0.37) {
+                    } else if(freqAverage >= 0.33 && freqAverage < 0.35) {
 
                         levelSeven = true;
                         levelSix = false;
                         levelEight = false;
 
-                    } else if(freqAverage >= 0.37 && freqAverage < 0.42) {
+                    } else if(freqAverage >= 0.35 && freqAverage < 0.40) {
                         levelEight = true;
                         levelSeven = false;
                         levelNine = false;
 
-                    } else if(freqAverage >= 0.42 && freqAverage < 0.47) {
+                    } else if(freqAverage >= 0.40 && freqAverage < 0.45) {
                         levelNine = true;
                         levelEight = false;
                         levelTen = false;
 
-                    } else if(freqAverage >= 0.47 && freqAverage < 0.52) {
+                    } else if(freqAverage >= 0.45 && freqAverage < 0.52) {
                         levelTen = true;
                         levelNine = false;
 
@@ -687,8 +707,6 @@ define(["three",
 
                 var displacement = floor.geometry.attributes.displacement;
 
-                var audioData = getAudioFreqData();
-                var freqAverage = getFreqAverage(audioData);
 
                 if (audioBuffer) {
                     for (var i = 0; i < displacement.count; i++) {
@@ -756,8 +774,6 @@ define(["three",
 
                 if(!levelEightActive) {
 
-             //       if(!shootingIYFParticles) {
-
                         for (var j = 0; j < particleArray.particles.length; j++) {
 
                             //       console.log(particleArray.particles[j]);
@@ -783,13 +799,11 @@ define(["three",
                             var v = particleArray.particles[j].uvposition[1];
 
                             particleArray.particles[j].spiralParticle.mesh.position.set((u) * Math.cos(u), h * v, (u) * Math.sin(u));
-               //         }
 
                     }
 
                 } else {
                         shootIYFParticles(particleArray);
-             //           console.log("shoot");
                 }
             }
 
@@ -893,11 +907,9 @@ define(["three",
                     return;
                 }
 
-                var freqAve = getFreqAverage(getAudioFreqData());
-
                 for(var i = 0; i<TDNoiseArray.length; i++) {
-                    TDNoiseArray[i].mesh.position.x -= 100 * freqAve;
-                    TDNoiseArray[i].mesh.rotation.z += freqAve;
+                    TDNoiseArray[i].mesh.position.x -= 100 * freqAverage;
+                    TDNoiseArray[i].mesh.rotation.z += freqAverage;
                     TDNoiseArray[i].mesh.rotation.y += 0.1
                 }
             }
@@ -925,13 +937,11 @@ define(["three",
 
                 for (var j = 0; j < particleArray.particles.length; j++) {
 
-                    var ave = getFreqAverage(getAudioFreqData());
-
                     var x = particleArray.particles[j].spiralParticle.mesh.position.x;
                     var y = particleArray.particles[j].spiralParticle.mesh.position.y;
                     var z = particleArray.particles[j].spiralParticle.mesh.position.z;
 
-                    particleArray.particles[j].spiralParticle.mesh.position.set(x+=ave*getRandomArbitrary(-90,80), y+=ave*getRandomArbitrary(-20,70), z+=ave*90);
+                    particleArray.particles[j].spiralParticle.mesh.position.set(x+=freqAverage*getRandomArbitrary(-90,80), y+=freqAverage*getRandomArbitrary(-20,70), z+=freqAverage*90);
                 }
 
             }
@@ -988,7 +998,6 @@ define(["three",
    //         var planeCounter = 0;
 
             function animatePlanes() {
-                var ave = getFreqAverage(getAudioFreqData());
 
                 for(var i=0; i<planeArray.length; i++) {
           //      if(planeCounter<planeArray.length) {
@@ -1007,16 +1016,16 @@ define(["three",
 
                     if(i%2 == 0) {
                         // linke Planes
-                        planeArray[i].mesh.position.x += ave * 10 * Math.random();
+                        planeArray[i].mesh.position.x += freqAverage * 10 * Math.random();
                     } else {
                         // rechte Planes
-                        planeArray[i].mesh.position.x -= ave * 10 * Math.random();
+                        planeArray[i].mesh.position.x -= freqAverage * 10 * Math.random();
 
                     }
-                    planeArray[i].mesh.position.y += ave * 10 * Math.random();
-                    planeArray[i].mesh.position.z += ave * 10 * Math.random();
+                    planeArray[i].mesh.position.y += freqAverage * 10 * Math.random();
+                    planeArray[i].mesh.position.z += freqAverage * 10 * Math.random();
 
-                    var scaleFactor = getFreqAverage(getAudioFreqData())*2;
+                    var scaleFactor = freqAverage*2;
 
                     planeArray[i].mesh.scale.set(scaleFactor,scaleFactor,scaleFactor);
 
@@ -1118,7 +1127,7 @@ define(["three",
                     backgroundNoiseArray[i].mesh.position.z += lorenzPositions[2]*10;
                 }
                 */
-                if(levelSevenActive) {
+                if(levelSixActive) {
                     shootBackgroundNoise();
 
                 }
@@ -1131,13 +1140,11 @@ define(["three",
 
                 for (var j = 0; j < backgroundNoiseArray.length; j++) {
 
-                    var ave = getFreqAverage(getAudioFreqData());
-
                     var x = backgroundNoiseArray[j].mesh.position.x;
                     var y = backgroundNoiseArray[j].mesh.position.y;
                     var z = backgroundNoiseArray[j].mesh.position.z;
 
-                    backgroundNoiseArray[j].mesh.position.set(x+=ave*getRandomArbitrary(-1,1), y+=ave*getRandomArbitrary(-5,5), z+=ave*500);
+                    backgroundNoiseArray[j].mesh.position.set(x+=freqAverage*getRandomArbitrary(-1,1), y+=freqAverage*getRandomArbitrary(-5,5), z+=freqAverage*500);
                 }
 
             }
@@ -1176,13 +1183,13 @@ define(["three",
                     }
 
                     if(levelFourActive) {
-                        /*
+
                         if (scope.camera.position.x < 500) {
                             scope.camera.position.x += 0.1;
                         } else {
                             levelFourActive = false;
                         }
-                        */
+
             //            console.log(scope.camera.position.x);
                     }
                     if(levelFiveActive) {
@@ -1195,12 +1202,12 @@ define(["three",
                         }
             //            console.log(scope.camera.position.z);
 
-                        /*
+
                         if (scope.camera.position.x > -500) {
                             scope.camera.position.x -= 0.2;
                         } else {
-                        //    levelSixActive = false;
-                        }*/
+                            levelSixActive = false;
+                        }
             //            console.log(scope.camera.position.x);
                     }
                     if(levelSixActive) {
@@ -1249,8 +1256,6 @@ define(["three",
                         if(z < 2000) {
                             scope.camera.position.z +=5;
                         }
-
-                    //    scope.camera.position.set(0,0,2000);
                     }
 
                 scope.camera.lookAt(new THREE.Vector3(0,0,0));
@@ -1329,14 +1334,12 @@ define(["three",
                     return;
                 }
 
-                var freqAve = getFreqAverage(getAudioFreqData());
-
                     for(var i= 0, j=0; j<circleWaveArray.length; i++,j++) {
                         if(circleWaveArray[j].circleWave != undefined) {
                             visualize(circleWaveArray[j].circleWave.mesh);
 
                             if(levelNineActive) {
-                                circleWaveArray[j].circleWave.mesh.scale.set(freqAve*3, freqAve*3, freqAve*3);
+                                circleWaveArray[j].circleWave.mesh.scale.set(freqAverage*3, freqAverage*3, freqAverage*3);
                             }
                         }
 
@@ -1378,11 +1381,11 @@ define(["three",
 
                                     circleT += 0.01;
 
-                                    circleWaveArray[i].circleWave.mesh.position.x += 10*freqAve*Math.cos(circleT);
-                                    circleWaveArray[i].circleWave.mesh.position.y += 10*freqAve*Math.sin(circleT);
+                                    circleWaveArray[i].circleWave.mesh.position.x += 10*freqAverage*Math.cos(circleT);
+                                    circleWaveArray[i].circleWave.mesh.position.y += 10*freqAverage*Math.sin(circleT);
 
-                                    circleWaveArray[i+1].circleWave.mesh.position.x -= 10*freqAve*Math.cos(circleT);
-                                    circleWaveArray[i+1].circleWave.mesh.position.y -= 10*freqAve*Math.sin(circleT);
+                                    circleWaveArray[i+1].circleWave.mesh.position.x -= 10*freqAverage*Math.cos(circleT);
+                                    circleWaveArray[i+1].circleWave.mesh.position.y -= 10*freqAverage*Math.sin(circleT);
 
                                 }
 
@@ -1580,37 +1583,8 @@ define(["three",
                         }
                     }
 
-                    /*
-                    if (INTERSECTED != intersects[0].object && INTERSECTED != undefined) {
-
-                        if (INTERSECTED) {
-                            INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
-                        }
-
-                        INTERSECTED = intersects[0].object;
-
-                        console.log(INTERSECTED.name);
-
-                        if (INTERSECTED.group == "speakers") {
-                            INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
-                            INTERSECTED.material.emissive.setHex(0x004f3f); // orange: b73800
-                        }
-
-                    }
-                    */
-
                 }
-                /*
-                else {
 
-                    if (INTERSECTED) {
-                        INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
-                    }
-
-                    INTERSECTED = null;
-
-                }
-                */
             }
 
         };
