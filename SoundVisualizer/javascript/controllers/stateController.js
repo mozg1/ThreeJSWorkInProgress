@@ -38,7 +38,7 @@ function checkForLevels() {
     if(levelFour) { // grün
         deleteCircleWaves();
         scope.createDots();
-        //              scope.createRays();
+        //              scope.createFastRays();
         levelFourActive = true;
     }
     if(levelFive) { // grüngelb

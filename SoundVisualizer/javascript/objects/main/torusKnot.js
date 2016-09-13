@@ -17,8 +17,6 @@ define(["three", "shaders"],
                 time: {type: "f", value: 0.0},
                 color: { value: new THREE.Color(0x000000) },
                 texture: {value: new THREE.TextureLoader().load("./textures/arthur.jpg")}
-                //       freqScale: {type: "f", value: 0.5},
-                //       colorScale: {type: "f", value: 1}
             };
 
             var attributes = this.geometry.attributes;
@@ -33,7 +31,7 @@ define(["three", "shaders"],
 
             this.mesh = new THREE.Mesh( this.geometry, shaderMaterial );
 
-            this.mesh.name = "torusKnotMesh";
+            this.mesh.name = "mainTorusKnotMesh";
 
             this.getMesh = function() {
                 return this.mesh;

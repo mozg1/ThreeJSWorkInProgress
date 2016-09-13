@@ -23,6 +23,8 @@ requirejs.config({
 
         "orbitcontrols": "./javascript/utils/orbitcontrols",
 
+        "bufferGeometry": "./javascript/objects/bufferGeometry",
+
         "simplewave": "./javascript/objects/background/simplewave",
         "floor": "./javascript/objects/background/floor",
         "backgroundParticle": "./javascript/objects/background/backgroundParticle",
@@ -34,6 +36,8 @@ requirejs.config({
         "octahedron": "./javascript/objects/midfield/octahedron",
         "curve": "./javascript/objects/midfield/curve",
 
+        "frontalPlane": "./javascript/objects/front/frontalPlane",
+        "frontRay": "./javascript/objects/front/frontRay",
         "ray": "./javascript/objects/front/ray",
         "line": "./javascript/objects/front/line",
         "circleWave": "./javascript/objects/front/circleWave",
@@ -113,7 +117,7 @@ define(["jquery", "three", "scene", "controller"],
             var scene = new Scene(renderer, canvasWidth, canvasHeight);
             scene.draw();
 
-            var htmlController = new Controller(scene);
+            var mainController = new Controller(scene);
 
             $("#loadingcontent").fadeIn("slow");
 
@@ -206,7 +210,7 @@ define(["jquery", "three", "scene", "controller"],
                 } else {
                     alert("Sorry, this file-type is unsupported");
                     droppedFiles = [];
-                    return;
+
                 }
 
             }

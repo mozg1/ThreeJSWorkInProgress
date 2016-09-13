@@ -17,14 +17,20 @@ define(["jquery", "simplewave", "shape", "random", "floor", "sphereMain", "line"
 
             var playing = false;
 
+            var startTime;
+
             $("#playAudio").click((function () {
 
                 if (readyToPlay && !playing) {
                     scene.planetLight();
                     var sphere = new SphereMain();
+                    scene.initializeMainObject(sphere);
                     scene.addBufferGeometry(sphere, [0,0,0]);
 
-                    console.log(sphere);
+                    startTime = Date.now();
+
+                    scene.addBufferGeometry(new fftLines(), [0,-200,0]);
+
 
                     var line1 = new Line();
                     line1.mesh.name = "line1";
@@ -61,10 +67,28 @@ define(["jquery", "simplewave", "shape", "random", "floor", "sphereMain", "line"
                 scene.clearCanvas();
                 playing = false;
             }
+            $('#modeSelector').change(function() {
+                var mode;
+
+                switch($(this).val()) {
+                    case "mode80s" :
+                        mode = 0;
+                        break;
+                    case "modeDeepBlue" :
+                        mode = 1;
+                        break;
+                    case "modeDarkRed" :
+                        mode = 2;
+                        break;
+                    default:
+                        mode = 0;
+                }
+                scene.setCurrentMode(mode);
+
+            });
 
             var floor = new Floor();
-            scene.addBufferGeometry(floor, [0,-300,0]);
-
+            scene.addBufferGeometry(floor, [0,-300,-3000]);
 
             var torus = new Torus();
      //       scene.addBufferGeometry(ring, [0,0,1500]);

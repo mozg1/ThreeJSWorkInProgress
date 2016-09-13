@@ -38,6 +38,9 @@ define(["three"],
 
             this.positions = [];// new Float32Array(Math.pow((segments+1),2) * 3);
             this.colors = [];// new Float32Array(Math.pow((segments+1),2) * 3);
+            this.normals = [];
+            this.uv = [];
+
 
             var color = new THREE.Color();
 
@@ -75,6 +78,8 @@ define(["three"],
             this.positions = new Float32Array(this.positions);
             this.colors = new Float32Array(this.colors);
             this.indices = new Uint32Array(this.indices);
+            this.normals = new Uint32Array(this.normals);
+            this.uv = new Uint32Array(this.uv);
 
             this.getPositions = function() {
                 return this.positions;
@@ -90,7 +95,8 @@ define(["three"],
 
             this.getSegments = function() {
                 return this.segments;
-            }
+            };
+
 
         };
 

@@ -20,7 +20,7 @@ try {
 // freqByteData.length = fftSize/2
 function getAudioFreqData() {
     if (!readyToPlay) {
-        return;
+
 
     } else {
         analyser.getByteFrequencyData(freqByteData);
@@ -32,7 +32,7 @@ function getAudioFreqData() {
 
 function getAudioTimeData() {
     if (!readyToPlay) {
-        return;
+
 
     } else {
         analyser.getByteTimeDomainData(freqByteData);

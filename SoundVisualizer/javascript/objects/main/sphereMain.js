@@ -33,30 +33,27 @@ define(["three", "shaders"],
                 fragmentShader: Shaders.getFragmentShader('sphere'),
                 vertexShader: Shaders.getVertexShader('sphere'),
                 wireframe: true,
-                opacity: 0.5,
+                opacity: 1.0,
                 transparent: true
             });
 
-            /*
-                        var shaderMaterial = new THREE.ShaderMaterial({
-                            uniforms: THREE.UniformsUtils.merge([
-                                THREE.ShaderLib['phong'],
-                                {
-                                    diffuseMaterial: {type: 'c', value: new THREE.Color(1, 1, 1)},
-                                    specularMaterial: {type: 'c', value: new THREE.Color(0.7, 0.7, 0.7)},
-                                    ambientMaterial: {type: 'c', value: new THREE.Color(0.8, 0.2, 0.2)},
-                                    shininessMaterial: {type: 'f', value: 16.0}
-                                }]),
-                            fragmentShader: Shaders.getFragmentShader('sphere'),
-                            vertexShader: Shaders.getVertexShader('sphere'),
-                            lights: true,
-                            wireframe: true
+            var dot = new THREE.Geometry();
 
-                        });
-                        */
+            for (var i = 0; i < this.geometry.attributes.position.array.length; i++) {
+                dot.vertices.push(this.geometry.attributes.position.array[i]);
+            }
+
+            var dotMaterial = new THREE.PointsMaterial( { size: 35, sizeAttenuation: false, transparent: true } );
+            dotMaterial.color.setRGB( 1,1,1);
+
+            var particles = new THREE.Points( dot, dotMaterial );
+            particles.sortParticles = true;
 
             this.mesh = new THREE.Mesh(this.geometry, shaderMaterial );
-            this.mesh.name = "sphereMesh";
+            this.mesh.name = "mainSphereMesh";
+
+            console.log(this.geometry.attributes.position);
+
 
             this.getMesh = function() {
                 return this.mesh;

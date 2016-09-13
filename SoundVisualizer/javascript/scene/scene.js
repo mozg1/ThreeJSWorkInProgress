@@ -6,13 +6,19 @@
 
 /* requireJS module definition */
 define(["three",
+        "controller",
+        "sphereMain",
         "shape",
         "fftLines",
+        "bufferGeometry",
         "plane",
         "backgroundParticle",
         "curve",
         "octahedron",
         "pyramid",
+        "parametric",
+        "frontalPlane",
+        "frontRay",
         "ray",
         "torus",
         "torusKnot",
@@ -22,7 +28,7 @@ define(["three",
         "orbitcontrols"],
     (function(THREE,
           //    Util,
-              Shape, fftLines, Plane, backgroundParticle, Curve, Octahedron, Pyramid, Ray, Torus, TorusKnot, CircleWave, Connectingline, Floor, Orbitcontrols) {
+              Controller, SphereMain, Shape, fftLines, BufferGeometry, Plane, backgroundParticle, Curve, Octahedron, Pyramid, Parametric, FrontalPlane, FrontRay, Ray, Torus, TorusKnot, CircleWave, Connectingline, Floor, Orbitcontrols) {
 
         "use strict";
 
@@ -30,6 +36,7 @@ define(["three",
          * Scene constructor
          */
         var Scene =  function(renderer, width, height) {
+
 
             // the scope of the object instance basically means the viewport
             var scope = this;
@@ -78,6 +85,7 @@ define(["three",
             light4.position.set(0,0,-1500);
             scope.scene.add(light4);
 
+
             this.planetLight = function(){
 
                 var color = new THREE.Color(1,1,1);
@@ -92,16 +100,6 @@ define(["three",
 
             };
 
-
-            scope.shouldAnimate = false;
-
-            this.activateAnimation = function() {
-                scope.shouldAnimate = true;
-            };
-
-            this.deactivateAnimation = function() {
-                scope.shouldAnimate = false;
-            };
 
             /**
              * MAIN CONTROL FUNCTIONS
@@ -125,7 +123,6 @@ define(["three",
             };
 
             var objectArray = [];
-            var objectCount = 0;
 
             this.addBufferGeometry = function (bufferGeometry, position) {
 
@@ -133,20 +130,121 @@ define(["three",
                 scope.currentMesh.position.set(position[0], position[1], position[2]);
                 scope.scene.add(scope.currentMesh);
 
-                //         console.log(position);
-                //         console.log(bufferGeometry);
+                if(scope.currentMesh.name == "mainPyramidMesh") {
+                    console.log("added a pyramid");
+                    console.log(scope.scene.children.length);
+                    console.log(scope.scene.children[scope.scene.children.length-1]);
+                }
 
-                objectArray[objectCount++] = bufferGeometry;
+                if(scope.currentMesh.name == "fftLinesMesh") {
+                    console.log("added freqDomain")
+                }
+
+                objectArray.push(bufferGeometry);
             };
 
-
-            var t = 0;
 
             var particleArray = {
                 particles: []
             };
 
             var levelHistory = [];
+
+            scope.shouldAnimate = false;
+
+            var startTime;
+            var duration;
+            var mainObjectDuration;
+            var currentMainObject = [];
+
+            var mainObjectTimer;
+
+            this.initializeMainObject = function(obj) {
+                currentMainObject.push(obj);
+            };
+
+            this.activateAnimation = function() {
+                // set startTime in seconds
+                startTime = Math.round(window.performance.now()/1000);
+                // round duration to whole seconds
+                duration = Math.round(getSongLength());
+                // set duration of each main object in scene
+                mainObjectDuration = Math.round(duration/20);
+                scope.shouldAnimate = true;
+
+
+                mainObjectTimer = setInterval(function() {
+                        console.log("mainchanger " + duration + " " + mainObjectDuration + " current: " + (Math.round(window.performance.now()/1000) - startTime));
+                        /*
+                         if((Date.now() - startTime) % mainObjectDuration == 0) {
+                         // change main object when time passed is a multiple of mainObjectDuration
+
+                         //        scope.removeMainObject("sphereMesh");
+                         scope.addBufferGeometry(new TorusKnot(), [0,0,0]);
+                         }
+                         */
+
+                    if(currentLevel != 0) {
+
+                        switch (currentMainObject[0].mesh.name) {
+                            case "mainSphereMesh" :
+                                scope.scene.remove(currentMainObject[0].mesh);
+                                currentMainObject.splice(0, 1);
+                                currentMainObject.push(new TorusKnot());
+                                scope.addBufferGeometry(currentMainObject[0], [0, 0, 0]);
+
+                                console.log(currentMainObject);
+
+                                break;
+
+                            case "mainTorusKnotMesh" :
+                                scope.scene.remove(currentMainObject[0].mesh);
+                                currentMainObject.splice(0, 1);
+                                currentMainObject.push(new Pyramid());
+                                currentMainObject.push(new Pyramid());
+                                currentMainObject.push(new Pyramid());
+
+                                scope.addBufferGeometry(currentMainObject[0], [-300, 0, 0]);
+                                scope.addBufferGeometry(currentMainObject[1], [0, 0, 0]);
+                                scope.addBufferGeometry(currentMainObject[2], [300, 0, 0]);
+
+                                console.log(currentMainObject);
+
+                                break;
+
+                            case "mainPyramidMesh" :
+                                scope.scene.remove(currentMainObject[0].mesh);
+                                scope.scene.remove(currentMainObject[1].mesh);
+                                scope.scene.remove(currentMainObject[2].mesh);
+                                currentMainObject.splice(0, 1);
+                                currentMainObject.splice(1, 1);
+                                currentMainObject.splice(2, 1);
+                                currentMainObject = [];
+
+                                createTrianguloid();
+
+                                console.log(currentMainObject);
+
+                                break;
+
+                            case "mainParametricMesh" :
+                                scope.scene.remove(currentMainObject[0].mesh);
+                                currentMainObject.splice(0, 1);
+                                currentMainObject.push(new SphereMain());
+                                scope.addBufferGeometry(currentMainObject[0], [0, 0, 0]);
+
+                                break;
+                        }
+                    }
+                }, mainObjectDuration*1000);
+            };
+
+
+
+            this.deactivateAnimation = function() {
+                scope.shouldAnimate = false;
+                clearInterval(mainObjectTimer);
+            };
 
 
             this.animate = function () {
@@ -158,7 +256,7 @@ define(["three",
                 getContinuousAudioData();
                 setLevel();
 
-                animateSphere();
+                animateMainObject();
                 visualizeLine();
                 animateFloor();
                 animateParticleSpiral();
@@ -168,19 +266,20 @@ define(["three",
                 drawFrequencyDomain();
                 animateCurves();
                 animate3DNoise();
+
+                moveRays();
                 shootRays();
+
                 animateShapes();
                 animateCircleWaves();
-                removeObjects();
+                removeChecker();
                 detectKick();
                 checkForLevels();
 
+                animateFrontalRays();
+                flickerLight();
 
             };
-
-            function getActiveLevels() {
-
-            }
 
             var L0 = 0;
             var L1 = 1;
@@ -193,14 +292,25 @@ define(["three",
             var L8 = 8;
             var L9 = 9;
 
-            function checkforPeaks() {
-                // make sure only the last 5 levels are present
-                if(levelHistory.length > 5) {
+            function checkforPeaks(peak) {
+                // make sure only the last 50 levels are present
+                if(levelHistory.length > 50) {
                     levelHistory.splice(0,1);
                 }
+                /*
                 if(levelHistory[4] > levelHistory[3] && levelHistory[3] > levelHistory[2] && levelHistory[2] > levelHistory[1]) {
 
                 }
+                */
+                var peakcontained = 0;
+
+                for(var i= 0; i<levelHistory.length; i++) {
+                    if(levelHistory[i] == peak) {
+                        peakcontained++;
+                    }
+                }
+
+                return peakcontained;
             }
 
 
@@ -218,96 +328,114 @@ define(["three",
                     levelFiveActive = true;
                 }
 */
-                if(levelZero) { // dunkelblau
-                    levelZeroActive = true;
-                    console.log("level 0 ");
-                    levelHistory.push(L0);
+                switch(currentLevel) {
+                    case 0 :
+                        levelZeroActive = true;
+                        console.log("level 0 ");
+                        levelHistory.push(L0);
+                        break;
+                    case 1 :
+                        levelOneActive = true;
+                        console.log("level 1");
+                        //              scope.createCurves();
+                        levelHistory.push(L1);
+                        break;
 
-                }
-                if(levelOne) { // hellblau
-                    levelOneActive = true;
-                    console.log("level 1");
-                    //              scope.createCurves();
-                    levelHistory.push(L1);
+                    case 2 :
+                        levelTwoActive = true;
+                        scope.create3DNoise();
+                //        stopRayAnimation();
 
-                }
-                if(levelTwo) { // grünblau
-                    levelTwoActive = true;
-                    scope.create3DNoise();
+                        console.log("level 2");
+                        levelHistory.push(L2);
+                        break;
 
-                    console.log("level 2");
-                    levelHistory.push(L2);
+                    case 3 :
+                        scope.createBackgroundNoise(); // mehr kleine Partikel wünschenswert
+                        levelThreeActive = true;
+                        slowRays = true;
+                        scope.createSlowRays();
 
-                }
-                if(levelThree) { // hellgrün
-                    scope.createBackgroundNoise();
-                    levelThreeActive = true;
+                        console.log("level 3");
+                        levelHistory.push(L3);
+                        break;
 
-                    console.log("level 3");
-                    levelHistory.push(L3);
+                    case 4 :
+                        deleteCircleWaves(); // hier passiet noch ganz wenig
+                        scope.createDots();
+                        levelFourActive = true;
 
-                }
-                if(levelFour) { // grün
-                    deleteCircleWaves();
-                    scope.createDots();
-                    //              scope.createRays();
-                    levelFourActive = true;
+                        console.log("level 4");
+                        levelHistory.push(L4);
+                        break;
 
-                    console.log("level 4");
-                    levelHistory.push(L4);
+                    case 5 :
+                        scope.createPlanes();  // hier passiert noch ganz wenig
+                        levelFiveActive = true;
+                        stopRayAnimation();
+                        console.log("level 5");
+                        levelHistory.push(L5);
+                        break;
 
-                }
-                if(levelFive) { // grüngelb
-                    scope.createPlanes();
-                    levelFiveActive = true;
+                    case 6 :
+                        scope.createShapes();
+                        moveBackground();
+                        // flacker background
+                        // disconnect shapes
+                        // change background particle movement
+                        levelSixActive = true;
 
-                    console.log("level 5");
-                    levelHistory.push(L5);
+                        console.log("level 6");
+                        levelHistory.push(L6);
+                        break;
 
-                }
-                if(levelSix) { // gelb
-                    scope.createShapes();
-                    moveBackground();
-                    // flacker background
-                    // disconnect shapes
-                    // change background particle movement
-                    levelSixActive = true;
+                    case 7 :
+                        scope.createCircleWaves(); // frontRays
+                        createFrontalRays();
 
-                    console.log("level 6");
-                    levelHistory.push(L6);
+                        // connect shapes
+                        levelSevenActive = true;
 
-                }
-                if(levelSeven) { // orange
-                    scope.createCircleWaves();
+                        console.log("level 7");
+                        levelHistory.push(L7);
 
-                    // connect shapes
-                    levelSevenActive = true;
+                        stroboActive = false;
+                        shootContinousParticles = false;
 
-                    console.log("level 7");
-                    levelHistory.push(L7);
+                        break;
 
-                }
-                if(levelEight) { // rot
-                    // Spiralenwechsel
-                    drawTimeDomain();
-                    console.log("Level 8");
-                    levelEightActive = true;
-                    levelHistory.push(L8);
+                    case 8 : // Spiralenwechsel
+                        drawTimeDomain();
+                        scope.createFastRays();
+                        fastRays = true;
 
-                }
-                if(levelNine) { // lila
-                    // Hauptfigur-wechsel
-                    console.log("level 9");
-                    levelNineActive = true;
-                    levelHistory.push(L9);
+                        console.log("Level 8");
+                        levelEightActive = true;
+                        levelHistory.push(L8);
 
-                }
-                if(levelTen) { // öhhhhhhhh
-                    console.log("level 10");
-                    levelTenActive = true;
-                }
-                if(levelEleven) { // white
-                    console.log("whatheactualfuck");
+                        shootContinousParticles = true;
+                        createContinousParticles();
+
+                        break;
+
+                    case 9 : // Hauptfigur-wechsel  // Strobo
+                        console.log("level 9");
+                        levelNineActive = true;
+                        levelHistory.push(L9);
+
+
+                        createContinousParticles();
+                        stroboActive = true;
+                        break;
+
+                    case 10 : console.log("level 10"); // totaler Szenenwechsel?
+                        levelTenActive = true;
+                        break;
+
+                    case 11 : console.log("wow");
+                        levelElevenActive = true;
+                        break;
+
                 }
 
             }
@@ -316,20 +444,14 @@ define(["three",
              * SOUND MODULE
              */
 
-            var audioContext;
-            //Get an Audio Context
-            try {
-                window.AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioContext = new window.AudioContext();
-            } catch (e) {
-                //Web Audio API is not supported in this browser
-                alert("Sorry! This browser does not support the Web Audio API. Please use Chrome, Safari or Firefox.");
-            }
+            var audioData = getAudioFreqData();
+            var freqAverage = getFreqAverage(audioData);
+
 
             // freqByteData.length = fftSize/2
             function getAudioFreqData() {
                 if (!readyToPlay) {
-                    return;
+
 
                 } else {
                     analyser.getByteFrequencyData(freqByteData);
@@ -341,7 +463,7 @@ define(["three",
 
             function getAudioTimeData() {
                 if (!readyToPlay) {
-                    return;
+
 
                 } else {
                     analyser.getByteTimeDomainData(freqByteData);
@@ -384,6 +506,16 @@ define(["three",
                 return normLevel;
             }
 
+            /**
+             * CONSTANTLY UPDATE AUDIOBUFFER FOR VISUALIZATION
+             */
+            function getContinuousAudioData() {
+                audioData = getAudioFreqData();
+                freqAverage = getFreqAverage(audioData);
+            }
+
+
+
             function getFreqRange(lower, upper) {
                 if(!readyToPlay) {
                     return;
@@ -411,17 +543,24 @@ define(["three",
             }
 
             function getMidrange() {
-                return getFreqRange(298,927);
+                return getFreqRange(298,743);
             }
 
             function getUppermids() {
-                return getFreqRange(928,1857);
+                return getFreqRange(744,2229);
 
             }
 
-            function getHighfreq() {
-                return getFreqRange(1858,3715);
+            function getBrightness() {
+                return getFreqRange(2230,3715);
+            }
 
+            function getHighFreq() {
+                return getFreqRange(3716,5944);
+            }
+
+            function getUltraHighFreq() {
+                return getFreqRange(5945,8192);
             }
 
             function detectKick() {
@@ -430,7 +569,7 @@ define(["three",
                 var bassBandAverage = getFreqAverage(getBassband());
                 var lowMidAverage = getFreqAverage(getLowmid());
 
-                var highFreqAverage = getFreqAverage(getHighfreq());
+                var highFreqAverage = getFreqAverage(getBrightness());
 
                 // (band - sub) / gesamt > 3,5
 
@@ -441,20 +580,10 @@ define(["three",
 
                 if(bassBandAverage > highFreqAverage) {
                     if(bassBandAverage > 0.65 && fullFreqAverage > 0.2) {
-           //             console.log("BEAT!");
+            //            console.log("BEAT!");
                     }
                     if(bassBandAverage > 0.65 && fullFreqAverage < 0.2) {
-           //             console.log("BEAT2!");
-/*
-                        var fftLines;
-
-                        for(var i = 0; i<objectArray.length;i++) {
-                            if(objectArray[i].mesh.name == "fftLinesMesh") {
-                                fftLines = objectArray[i];
-                            }
-                        }
-                            fftLines.colorVertices();
-                            */
+            //            console.log("BEAT2!");
                     }
                 }
 
@@ -464,19 +593,6 @@ define(["three",
             /**
              * ANIMATION / VISUALIZATION
              */
-
-            var levelZero = false;
-            var levelOne = false;
-            var levelTwo = false;
-            var levelThree = false;
-            var levelFour = false;
-            var levelFive = false;
-            var levelSix = false;
-            var levelSeven = false;
-            var levelEight = false;
-            var levelNine = false;
-            var levelTen = false;
-            var levelEleven = false;
 
             var levelZeroActive = false;
             var levelOneActive = false;
@@ -492,26 +608,27 @@ define(["three",
             var levelElevenActive = false;
 
 
+
             this.createFFTLines = function() {
-                this.addBufferGeometry(new fftLines(), [0,-200,0]);
-  //              console.log("created FFTLines");
+                scope.addBufferGeometry(new fftLines(), [0,-200,0]);
             };
 
             // call this.function with scope.function from normal functions
 
             function drawFrequencyDomain() {
 
-                var fftLines;
+   //             var fftLines = scope.scene.getObjectById("fftLinesMesh");
+                // TODO: Super Bug mit unauffindbarem getObjectById fftLinesMesh
+
                 for(var i = 0; i<objectArray.length;i++) {
                     if(objectArray[i].mesh.name == "fftLinesMesh") {
                         fftLines = objectArray[i];
                     }
                 }
 
-
                 if(!fftLines ) {
-                    console.log("entered");
-                    scope.createFFTLines();
+                    scope.addBufferGeometry(new fftLines(), [0,-200,0]);
+                    console.log("created FFT")
                 } else if(readyToPlay) {
 
                     var freqByteData = getAudioFreqData();
@@ -522,210 +639,193 @@ define(["three",
             }
 
             function visualizeLine() {
-                for(var h=0;h<objectCount;h++) {
-                    if(objectArray[h].mesh.name.indexOf("line") !== -1) {
-                       var line = objectArray[h].mesh;
-                       visualize(line);
-                    }
-                }
+                visualize(scope.scene.getObjectByName("line1"));
+                visualize(scope.scene.getObjectByName("line2"));
+
             }
 
-            var audioData = getAudioFreqData();
-            var freqAverage = getFreqAverage(audioData);
 
+            var currentLevel;
+            var currentColorMode = 0;
 
-            function getContinuousAudioData() {
-                audioData = getAudioFreqData();
-                freqAverage = getFreqAverage(audioData);
+            var color = [ [ [5, 6, 8],
+                            [4, 5, 8],
+                            [3, 6, 4.5],
+                            [1.2, 4.5, 2.2],
+                            [2.5, 5, 1],
+                            [2, 4, 2],
+                            [3, 3, 1.7],
+                            [3, 1.5, 0.5],
+                            [3, 1, 1.5],
+                            [2, 1.5, 2.5],
+                            [1.5, 1, 2] ],
+
+                    [ [5, 6, 8],
+                        [4, 5, 8],
+                        [3, 4, 4.5],
+                        [2, 3, 4],
+                        [1.5, 4, 5],
+                        [2, 3, 3.5],
+                        [2, 2, 2.5],
+                        [2, 2, 3],
+                        [2.5, 2.5, 2],
+                        [2, 2, 1],
+                        [1.5, 1, 2] ],
+
+                [ [8, 6, 5],
+                    [8, 5, 4],
+                    [5, 4, 3],
+                    [4, 3, 2],
+                    [5, 2.5, 2.5],
+                    [4, 2, 4],
+                    [3, 1.5, 2.5],
+                    [2.5, 1, 2],
+                    [2, 1.5, 2],
+                    [2, 2, 1.5],
+                    [1.5, 1, 2] ] ];
+
+            /**
+             *
+             * @param mode - value between 0 and 2
+             */
+            this.setCurrentMode = function(mode) {
+                  currentColorMode = mode;
+                  console.log(currentColorMode);
+            };
+
+            function setCurrentColor(mode, level) {
+     //           console.log("mode: " +mode+" level: "+level);
+                var r = color[mode][level][0];
+                var g = color[mode][level][1];
+                var b = color[mode][level][2];
+                return new THREE.Color(freqAverage*r, freqAverage*g, freqAverage*b);
             }
+
 
             /**
              * object must be mesh
              * @param mesh
              */
 
+            var time = Date.now() * 0.01;
+
             function visualize(mesh) {
-                var time = Date.now() * 0.01;
 
                 var displacement = mesh.geometry.attributes.displacement;
 
-
-
-                if(mesh.name == "sphereMesh") {
+                if(mesh.name != "line1" && mesh.name != "line2")  {
                     if(freqAverage < 0.2) {
                         mesh.rotation.z = freqAverage*0.1+time/100;
                     } else if(freqAverage > 0.2) {
                         mesh.rotation.y = freqAverage*0.1+time/100;
                         mesh.rotation.z = freqAverage*0.1+time/100;
                     }
-
                     mesh.material.uniforms.amplitude.value = freqAverage*3;
-
                 }
 
                 if (audioBuffer) {
 
-                    var color;
+                    var trueColor = setCurrentColor(currentColorMode, currentLevel);
 
                     for (var i = 0; i < displacement.count; i++) {
                         mesh.geometry.attributes.displacement.array[i] = (audioData[i]);
-
-                        if( levelZero) {
-                            // dunkelblau
-                            color = new THREE.Color(freqAverage*5, freqAverage*6, freqAverage*8);
-
-                        } else if (levelOne) {
-                            // helleres blau
-                            color = new THREE.Color(freqAverage * 4, freqAverage * 5, freqAverage * 8);
-
-                        } else if (levelTwo) {
-                            // grünblau
-                            color = new THREE.Color(freqAverage*3, freqAverage*6, freqAverage*4.5);
-
-                        } else if (levelThree) {
-                            // hellgrün
-                            color = new THREE.Color(freqAverage*1.2, freqAverage*4.5, freqAverage*2.2);
-
-                            levelThree = true
-
-                        } else if(levelFour) {
-                            // grün
-                            color = new THREE.Color(freqAverage*2.5, freqAverage*4, freqAverage*1);
-
-                        } else if (levelFive) {
-                            // grüngelb
-                            color = new THREE.Color(freqAverage*2, freqAverage*4, freqAverage*2);
-
-                        } else if(levelSix) {
-                            // gelb
-                            color = new THREE.Color(freqAverage*3, freqAverage*3, freqAverage*1.7);
-
-                        } else if(levelSeven) {
-                            // orange
-                            color = new THREE.Color(freqAverage*3, freqAverage*1.5, freqAverage*0.5);
-
-                        } else if(levelEight) {
-                            // rot
-                            color = new THREE.Color(freqAverage*3, freqAverage*1, freqAverage*1.5);
-
-                        } else if(levelNine) {
-                            // hellrot
-                            color = new THREE.Color(freqAverage*2, freqAverage*1.5, freqAverage*2.5);
-
-                        } else if(levelTen) {
-                            // lila + white glow
-                            color = new THREE.Color(freqAverage*1.5, freqAverage*1, freqAverage*2);
-
-                        } else if(levelEleven) {
-                            // white
-                            color = new THREE.Color(freqAverage*2, freqAverage*2, freqAverage*2);
-                        }
-
-                        mesh.material.uniforms.color.value = color;
-
+                        mesh.material.uniforms.color.value = trueColor;
                     }
+
                     mesh.geometry.attributes.displacement.needsUpdate = true;
                 }
             }
 
             function setLevel() {
 
-
                 if(freqAverage < 0.1) {
-                        levelZero = true;
-                        levelOne = false;
-                    } else if (freqAverage >= 0.1 && freqAverage < 0.16) {
+                        currentLevel = 0;
+                } else if (freqAverage >= 0.1 && freqAverage < 0.16) {
 
-                        levelOne = true;
-                        levelZero = false;
-                        levelTwo = false;
+                        currentLevel = 1;
 
-                    } else if (freqAverage >= 0.16 && freqAverage < 0.20) {
+                } else if (freqAverage >= 0.16 && freqAverage < 0.20) {
 
-                        levelTwo = true;
-                        levelOne = false;
-                        levelThree = false;
+                        currentLevel = 2;
 
-                    } else if (freqAverage >= 0.20 && freqAverage < 0.24) {
+                } else if (freqAverage >= 0.20 && freqAverage < 0.24) {
 
-                        levelThree = true;
-                        levelTwo = false;
-                        levelFour = false;
+                        currentLevel =3;
 
-                    } else if(freqAverage >= 0.24 && freqAverage < 0.28) {
+                } else if(freqAverage >= 0.24 && freqAverage < 0.28) {
 
-                        levelFour = true;
-                        levelThree = false;
-                        levelFive = false;
+                        currentLevel = 4;
 
-                    } else if (freqAverage >= 0.28 && freqAverage < 0.31) {
+                } else if (freqAverage >= 0.28 && freqAverage < 0.31) {
 
-                        levelFive = true;
-                        levelFour = false;
-                        levelSix = false;
-                    } else if(freqAverage >= 0.31 && freqAverage < 0.33) {
+                        currentLevel = 5;
 
-                        levelSix = true;
-                        levelFive = false;
-                        levelSeven = false;
+                } else if(freqAverage >= 0.31 && freqAverage < 0.33) {
 
-                    } else if(freqAverage >= 0.33 && freqAverage < 0.35) {
+                        currentLevel = 6;
 
-                        levelSeven = true;
-                        levelSix = false;
-                        levelEight = false;
+                } else if(freqAverage >= 0.33 && freqAverage < 0.35) {
 
-                    } else if(freqAverage >= 0.35 && freqAverage < 0.40) {
-                        levelEight = true;
-                        levelSeven = false;
-                        levelNine = false;
+                        currentLevel = 7;
 
-                    } else if(freqAverage >= 0.40 && freqAverage < 0.45) {
-                        levelNine = true;
-                        levelEight = false;
-                        levelTen = false;
+                } else if(freqAverage >= 0.35 && freqAverage < 0.40) {
 
-                    } else if(freqAverage >= 0.45 && freqAverage < 0.52) {
-                        levelTen = true;
-                        levelNine = false;
+                        currentLevel = 8;
 
-                    } else if(freqAverage >= 0.52 && freqAverage < 0.60) {
-                        levelTen = false;
-                        levelEleven = true;
-                    }
+                } else if(freqAverage >= 0.40 && freqAverage < 0.45) {
+
+                        currentLevel = 9;
+
+                } else if(freqAverage >= 0.45 && freqAverage < 0.52) {
+
+                        currentLevel = 10;
+
+                } else if(freqAverage >= 0.52 && freqAverage < 0.60) {
+
+                        currentLevel = 11;
+                }
             }
 
-            function animateSphere() {
-                var sphere = scope.scene.getObjectByName("sphereMesh");
-                visualize(sphere);
+            function animateMainObject() {
+                var obj;
+
+                for(var i=0;i<objectArray.length;i++) {
+                    if(objectArray[i]) {
+                        if(objectArray[i].mesh.name.indexOf("main") !== -1) {
+                            obj = objectArray[i].mesh;
+                            visualize(obj);
+                        }
+                    }
+                }
             }
 
             function animateFloor() {
                 var floor = scope.scene.getObjectByName("floorMesh");
 
-            //    var time = Date.now() * 0.01;
+                if(floor) {
+                    var displacement = floor.geometry.attributes.displacement;
 
-                var displacement = floor.geometry.attributes.displacement;
-
-
-                if (audioBuffer) {
-                    for (var i = 0; i < displacement.count; i++) {
-                        floor.geometry.attributes.displacement.array[i] = (audioData[i]*0.5);
-                        floor.material.uniforms.color.value = new THREE.Color("rgb("+180*Math.floor(freqAverage*9) +","+ 25*Math.floor(freqAverage*15) +","+ 220+")");
+                    if (audioBuffer) {
+                        for (var i = 0; i < displacement.count; i++) {
+                            floor.geometry.attributes.displacement.array[i] = (audioData[i]*0.5);
+                            floor.material.uniforms.color.value = new THREE.Color("rgb("+180*Math.floor(freqAverage*9) +","+ 25*Math.floor(freqAverage*15) +","+ 220+")");
+                        }
+                        floor.geometry.attributes.displacement.needsUpdate = true;
                     }
-                    floor.geometry.attributes.displacement.needsUpdate = true;
-
                 }
+
             }
+
+            var torusT = 0;
 
             function animateTorus() {
 
                 var torus = scope.scene.getObjectByName("torusMesh");
-                t += 0.01;
+                torusT += 0.01;
                 var p=0;
-                torus.position.x = 1000*Math.cos(t) + p;
-                torus.position.z = 1000*Math.sin(t) + p;
-                torus.rotation.y = t*0.1;
+                torus.position.x = 1000*Math.cos(torusT) + p;
+                torus.position.z = 1000*Math.sin(torusT) + p;
+                torus.rotation.y = torusT*0.1;
             }
 
             var h = 10;
@@ -765,8 +865,6 @@ define(["three",
                 }
             };
 
-
-
             function animateParticleSpiral() {
                 if(particleArray.particles.length == 0) {
                     return;
@@ -775,14 +873,12 @@ define(["three",
                 if(!levelEightActive) {
 
                         for (var j = 0; j < particleArray.particles.length; j++) {
-
                             //       console.log(particleArray.particles[j]);
                             if (particleArray.particles[j].spiralParticle.mesh.position.y > 500) {
                                 particleArray.particles[j].direction = 0;
                             } else if (particleArray.particles[j].spiralParticle.mesh.position.y < -500) {
                                 particleArray.particles[j].direction = 1;
                             }
-
 
                             if (particleArray.particles[j].direction == 0) {
                                 //        console.log("down");
@@ -799,13 +895,16 @@ define(["three",
                             var v = particleArray.particles[j].uvposition[1];
 
                             particleArray.particles[j].spiralParticle.mesh.position.set((u) * Math.cos(u), h * v, (u) * Math.sin(u));
-
                     }
 
                 } else {
                         shootIYFParticles(particleArray);
                 }
             }
+
+            var newj = new THREE.SphereBufferGeometry();
+
+            console.log(newj);
 
             function animateOrbit() {
 
@@ -859,31 +958,132 @@ define(["three",
           //      }
             }
 
-            var rayArray = [];
+            var slowRayArray = [];
+            var fastRayArray = [];
 
-            this.createRays = function() {
-                if(rayArray.length < 20) {
+            var slowRayX = -100;
+            var slowRayY = 100;
+            var slowRayZ = -1000;
+
+            this.createSlowRays = function() {
+                //       20*Math.cos(x) + factor, y+=1 z = 20*Math.cos(slowRayZ) + factor
+                if(slowRayArray.length < 20) {
+                    var rayL = new Ray();
+      //              rayL.geometry.applyMatrix(new THREE.Matrix4().makeRotationX((-Math.PI/2)));
+                    rayL.geometry.applyMatrix(new THREE.Matrix4().makeRotationY((-5)));
+          //          rayL.geometry.applyMatrix(new THREE.Matrix4().makeRotationY((-Math.PI*2)));
+
+                    //          this.addBufferGeometry(rayL, [10,10,10]);
+
+                    var rayR = new Ray();
+                    rayR.geometry.applyMatrix(new THREE.Matrix4().makeRotationY((-7)));
+
+                    var x = 20*Math.cos(slowRayX);
+                    var y = 20*Math.sin(slowRayZ);
+
+                    this.addBufferGeometry(rayL, [x+=100,y+=100,slowRayZ+=100]);
+                    slowRayArray.push(rayL);
+
+                    this.addBufferGeometry(rayR, [x,y,slowRayZ]);
+                    slowRayArray.push(rayR);
+
+                }
+
+            };
+
+            this.createFastRays = function() {
+                if(fastRayArray.length < 20) {
                     var ray = new Ray();
+                    var fastRay = {
+                        object: ray,
+                        direction: 1
+                    };
                     ray.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI));
 
                     this.addBufferGeometry(ray, [0,100,1000]);
-                    rayArray.push(ray);
+                    fastRayArray.push(fastRay);
+        //            console.log(fastRayArray + "  " + fastRayArray[0].object.mesh.position.y);
                 }
 
             };
 
             var rayFactor = 0.1;
             var rayPos = 0;
+            var fastRays = false;
+            var slowRays = false;
+
+            function moveRays() {
+                if (slowRays) {
+                    if (slowRayArray.length == 0) {
+                        return;
+                    }
+                    fastRays = false;
+                    for (var i = 0; i < slowRayArray.length; i++) {
+           //             slowRayArray[i].mesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(rayPos += 0.00001));
+
+                        slowRayArray[i].mesh.position.x += 200*Math.cos(slowRayArray[i].mesh.position.x + 0.00001);
+                        slowRayArray[i].mesh.position.y += 1;
+                        slowRayArray[i].mesh.position.z += 200*Math.cos(slowRayArray[i].mesh.position.z + 0.00001);
+
+               //         slowRayArray[i].mesh.position.x += slowRayArray[i].mesh.position.x + 20*Math.cos(10) + 1;
+               //         slowRayArray[i].mesh.position.y += 1;
+               //         slowRayArray[i].mesh.position.z += slowRayArray[i].mesh.position.x + 20*Math.sin(10) + 1;
+
+                    }
+                } else {
+                    for (i = 0; i < slowRayArray.length; i++) {
+           //             slowRayArray.splice(i, 1);
+                    }
+                }
+            }
 
             function shootRays() {
-                if(rayArray.length == 0) {
-                    return;
-                }
-                for(var i=0;i<rayArray.length;i++) {
+                if (fastRays == true) {
+                    if (fastRayArray.length == 0) {
+                        return;
+                    }
+                    slowRays = false;
+                    for (var i = 0; i < fastRayArray.length; i++) {
 
-                    rayArray[i].mesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(rayPos+=rayFactor));
+                        fastRayArray[i].object.mesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(rayPos += rayFactor));
 
+                        if(fastRayArray[i].direction == 1) {
+                            fastRayArray[i].object.mesh.position.set(fastRayArray[i].object.mesh.position.x, fastRayArray[i].object.mesh.position.y-=1, fastRayArray[i].object.mesh.position.z);
+                        }
+                        if(fastRayArray[i].direction == 0) {
+                            fastRayArray[i].object.mesh.position.set(fastRayArray[i].object.mesh.position.x, fastRayArray[i].object.mesh.position.y+=1, fastRayArray[i].object.mesh.position.z);
+                        }
+
+                        if(fastRayArray[i].object.mesh.position.y == 0) {
+                            fastRayArray[i].direction = 0;
+                        }
+                        if(fastRayArray[i].object.mesh.position.y == 100) {
+                            fastRayArray[i].direction = 1;
+                        }
+
+                    }
+                } else {
+                    for (i = 0; i < slowRayArray.length; i++) {
+              //           fastRayArray.splice(i, 1);
+                    }
                 }
+            }
+
+            function stopRayAnimation() {
+                fastRays = false;
+                slowRays = false;
+                for(var i=0;i<fastRayArray.length;i++) {
+                    scope.scene.remove(fastRayArray[i].object.mesh);
+                }
+                for(i=0;i<slowRayArray.length;i++) {
+                    scope.scene.remove(slowRayArray[i].mesh);
+                }
+                fastRayArray = [];
+                slowRayArray = [];
+
+                slowRayX = -100;
+                slowRayY = 100;
+                slowRayZ = -1000;
             }
 
             var TDNoiseArray = [];
@@ -995,18 +1195,14 @@ define(["three",
                 return "0x" + componentToHex(r) + componentToHex(g) + componentToHex(b);
             };
 
-   //         var planeCounter = 0;
-
             function animatePlanes() {
 
                 for(var i=0; i<planeArray.length; i++) {
-          //      if(planeCounter<planeArray.length) {
-                //    var i = planeCounter;
+
                     var color = getRandomArbitrary(20,160);
 
                     if(levelSixActive) {
                         color = rgbToHex(color,color,color);
-                        //      console.log(planeArray[i] + "    " + color);
                         planeArray[i].mesh.material.color.setHex(color);
                     }
                     if(levelEightActive) {
@@ -1029,12 +1225,6 @@ define(["three",
 
                     planeArray[i].mesh.scale.set(scaleFactor,scaleFactor,scaleFactor);
 
-     //               planeCounter++;
-/*
-                }    else {
-                    planeCounter = 0;
-                }
-*/
                }
                 levelSixActive = false;
 
@@ -1099,6 +1289,7 @@ define(["three",
 
             this.createBackgroundNoise = function() {
                 var backPart = new backgroundParticle();
+                continousParticle.mesh.material.color.setHex(0x00ff00);
 
                 if(backgroundNoiseArray.length<500) {
                     scope.addBufferGeometry(backPart, [getRandomArbitrary(-1000,1000), getRandomArbitrary(-300,300), getRandomArbitrary(-1000, -2000)]);
@@ -1183,6 +1374,7 @@ define(["three",
                     }
 
                     if(levelFourActive) {
+                        levelSevenActive = false;
 
                         if (scope.camera.position.x < 500) {
                             scope.camera.position.x += 0.1;
@@ -1202,14 +1394,14 @@ define(["three",
                         }
             //            console.log(scope.camera.position.z);
 
-
+/*
                         if (scope.camera.position.x > -500) {
                             scope.camera.position.x -= 0.2;
                         } else {
                             levelSixActive = false;
                         }
-            //            console.log(scope.camera.position.x);
-                    }
+                      console.log(scope.camera.position.x);
+          */        }
                     if(levelSixActive) {
                         levelThreeActive = false;
 
@@ -1238,7 +1430,6 @@ define(["three",
             //            console.log(scope.camera.position.y);
                     }
                     if(levelEightActive) {
-                        levelSevenActive = false;
 
                         // check positions
                         var x = scope.camera.position.x;
@@ -1288,10 +1479,108 @@ define(["three",
 
             }
 
+            scope.addBufferGeometry(new FrontalPlane(), [0,0,1999]);
+            var stroboActive = false;
+
+            var frontalPlane = scope.scene.getObjectByName("frontalPlaneMesh");
+
             function flickerLight() {
+                if(stroboActive) {
+                    frontalPlane.material.opacity = 0.9;
+                    frontalPlane.rotation.x += 1000;
+                } else {
+                    frontalPlane.material.opacity = 0.0;
+                }
+            }
+
+            var frontalRayArray = [];
+            var frontalRayXRight = 400;
+            var frontalRayXLeft = -400;
+            var frontalRayZ = 2500;
+
+            function createFrontalRays() {
+                if(frontalRayArray.length < 8) {
+                    var frontalRay1 = new FrontRay();
+                    console.log(frontalRay1);
+                    frontalRay1.geometry.applyMatrix(new THREE.Matrix4().makeRotationZ(Math.PI / 2 -10));
+                    scope.addBufferGeometry(frontalRay1, [frontalRayXRight-= frontalRayXRight /1.5, 0, frontalRayZ-= frontalRayZ/3]);
+
+                    frontalRayArray.push(frontalRay1);
+
+                    var frontalRay2 = new FrontRay();
+            //        frontalRay2.geometry.mesh.material.color = 0xffff00;
+                    frontalRay2.geometry.applyMatrix(new THREE.Matrix4().makeRotationZ(-Math.PI / 2 + 10));
+                    scope.addBufferGeometry(frontalRay2, [frontalRayXLeft-=frontalRayXLeft/1.5, 0, frontalRayZ]);
+
+                    frontalRayArray.push(frontalRay2);
+
+                }
+            }
+
+            function animateFrontalRays() {
+                if(levelSevenActive && frontalRayArray.length != 0) {
+                    for(var i=0;i<frontalRayArray.length;i++) {
+                        frontalRayArray[i].mesh.rotation.z += 0.1;
+                        if(i+1 != frontalRayArray.length) {
+                            frontalRayArray[i+=1].mesh.rotation.z -= 0.1;
+                        }
+                    }
+                } else {
+                    for(i=0;i<frontalRayArray.length;i++) {
+                        scope.scene.remove(frontalRayArray[i].mesh);
+                        frontalRayArray.splice(i,1);
+                        frontalRayXRight = 400;
+                        frontalRayXLeft = -400;
+                        frontalRayZ = 2500;
+                    }
+
+                }
+            }
+
+
+            var shootContinousParticles = false;
+            var continousParticle = new backgroundParticle();
+            console.log(continousParticle);
+
+            function createContinousParticles() {
+                if (backgroundNoiseArray.length < 300 && shootContinousParticles && checkforPeaks(8) > 15) {
+                    while (backgroundNoiseArray.length < 300) {
+                        var continousParticle = new backgroundParticle();
+                        if(checkforPeaks(8) > 20) {
+                            continousParticle.mesh.material.color.setHex(0xffffff);
+                        } else {
+                            continousParticle.mesh.material.color.setHex(0xffff99);
+                        }
+
+                        scope.addBufferGeometry(continousParticle, [getRandomArbitrary(-1000, 1000), getRandomArbitrary(-300, 300), getRandomArbitrary(-1000, -2000)]);
+                        backgroundNoiseArray.push(continousParticle);
+                    }
+                } else {
+                    for(var i=0; i<backgroundNoiseArray.length; i++) {
+                        scope.scene.remove(backgroundNoiseArray[i].mesh);
+                        backgroundNoiseArray.split(i,1);
+                    }
+                }
+
+                for (var j = 0; j < backgroundNoiseArray.length; j++) {
+
+                    var x = backgroundNoiseArray[j].mesh.position.x;
+                    var y = backgroundNoiseArray[j].mesh.position.y;
+                    var z = backgroundNoiseArray[j].mesh.position.z;
+
+                    backgroundNoiseArray[j].mesh.position.set(x += freqAverage * getRandomArbitrary(-1, 1), y += freqAverage * getRandomArbitrary(-5, 5), z += freqAverage * 500);
+                }
+            }
+
+            function continousParticleShoot() {
 
             }
 
+            var particleStreamArray = [];
+
+            function particleStreamWave() {
+
+            }
 
             function animateMandelbrot() {
 
@@ -1372,13 +1661,6 @@ define(["three",
                                     circleWaveArray[i].circleWave.mesh.position.y +=2;
                                     circleWaveArray[i + 1].circleWave.mesh.position.y -=2;
 
-                                    var xi = circleWaveArray[i].circleWave.mesh.position.x;
-                                    var yi = circleWaveArray[i].circleWave.mesh.position.y;
-
-                                    var xi1 = circleWaveArray[i+1].circleWave.mesh.position.x;
-                                    var yi1 = circleWaveArray[i+1].circleWave.mesh.position.y;
-
-
                                     circleT += 0.01;
 
                                     circleWaveArray[i].circleWave.mesh.position.x += 10*freqAverage*Math.cos(circleT);
@@ -1408,8 +1690,53 @@ define(["three",
                     circleWaveArray.splice(i,1);
                     scope.scene.remove(circleWave);
                 }
+
                 circleT = 0;
                 levelNineActive = false;
+            }
+
+
+ //           createTrianguloid();
+
+            function createTrianguloid() {
+                var config = {
+                    segments : 50,
+                    umin : 0,
+                    umax : 2*Math.PI,
+                    vmin : -Math.PI/2,
+                    vmax : Math.PI/2
+                };
+
+                var posFunc = function(u,v) {
+
+                    var x = Math.cos(u) * Math.sin(2 * v);
+                    var y = Math.sin(u) * Math.sin(2 * v);
+                    var z = Math.sin(v);
+
+
+                    return [x*300,y*300,z*300];
+                };
+
+                newBufferGeo(posFunc,config);
+            }
+
+            function newBufferGeo(posFunc, config) {
+                var rgb = {
+                    red : 1,
+                    blue : 1,
+                    green : 1
+                };
+
+                var param = new Parametric(posFunc, config, rgb);
+                var bufferGeometryParam = new BufferGeometry();
+                bufferGeometryParam.addAttribute("position", param.getPositions());
+                bufferGeometryParam.addAttribute("color", param.getColors());
+
+                bufferGeometryParam.setIndex(param.getIndices());
+                bufferGeometryParam.setSegments(param.getSegments());
+
+                currentMainObject.push(bufferGeometryParam);
+                scope.addBufferGeometry(bufferGeometryParam, [0,0,-500]);
             }
 
 
@@ -1484,7 +1811,21 @@ define(["three",
                 }
             }
 
-            function removeObjects() {
+
+            // children sind bereits Meshes
+
+            this.removeMainObject = function() {
+
+                for(var i=0;i<currentMainObject.length;i++) {
+                        scope.scene.remove(currentMainObject[i].mesh);
+                        currentMainObject.splice(i,1);
+                }
+                currentMainObject = [];
+
+
+            };
+
+            function removeChecker() {
                 for(var i=0; i<particleArray.particles.length; i++) {
                     if(particleArray.particles[i].spiralParticle.mesh.position.z > 2000) {
                         var particle = particleArray.particles[i].spiralParticle.mesh; //scope.scene.getObjectById(particleArray.particles[i].spiralParticle.geometry.id);
@@ -1536,16 +1877,15 @@ define(["three",
                     scope.scene.remove(scope.scene.children[ i ]);
                 }
                 objectArray = [];
-                objectCount = 0;
-
 
                 backgroundNoiseArray = [];
                 shapeArray = [];
                 planeArray = [];
                 TDNoiseArray = [];
                 circleWaveArray = [];
-                rayArray = [];
+                slowRayArray = [];
                 curveArray = [];
+                currentMainObject = [];
 
                 scope.scene.remove(scope.scene.getObjectByName("fftLinesMesh"));
                 scope.scene.remove(scope.scene.getObjectByName("line1"));
@@ -1554,6 +1894,8 @@ define(["three",
 
                 var floor = new Floor();
                 this.addBufferGeometry(floor, [0,-300,0]);
+
+                scope.camera.position.set(0,0,2000);
             };
 
 

@@ -7,7 +7,9 @@
 
     <script data-main="app.js" src="../lib/require.js"></script>
     <!--
-    <script type="text/javascript" src="javascript/audioscript/audio.js"></script>
+    <script type="text/javascript" src="https://github.com/dataarts/dat.gui/blob/master/build/dat.gui.min.js"></script>
+    <script type="text/javascript" src="https://github.com/jeromeetienne/threex.rendererstats/blob/master/threex.rendererstats.js"></script>
+    <script type="text/javascript" src="https://github.com/mrdoob/stats.js/blob/master/build/stats.min.js"></script>
     -->
     <script type="text/javascript" src="javascript/audioscript/mainaudiohandler.js"></script>
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/style.css">
@@ -62,10 +64,16 @@
     <button id="playAudio">Start</button>
 
     <div id="volumecontrol">
-        <!--          <input type="range" id="volumeSlider" value="60"></div> -->
+        <!--  <input type="range" id="volumeSlider" value="60"></div> -->
     </div>
 
-    <button id="chooseInput">Select Input</button>
+    <button id="chooseInput">Select input</button>
+
+    <select id="modeSelector">
+        <option value="mode80s">80s</option>
+        <option value="modeDeepBlue">Deep Blue</option>
+        <option value="modeDarkRed">Dark Red</option>
+    </select>
 
 </div>
 </body>

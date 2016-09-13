@@ -75,7 +75,7 @@ this.createCurves = function() {
 
 var rayArray = [];
 
-this.createRays = function() {
+this.createFastRays = function() {
     if(rayArray.length < 20) {
         var ray = new Ray();
         ray.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI));

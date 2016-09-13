@@ -3,7 +3,6 @@
  */
 var source;
 var audioBuffer;
-var dropArea;
 var audioContext = new (window.AudioContext || window.webkitAudioContext || window.mozAudioContext)();
 var analyser;
 
@@ -88,16 +87,17 @@ function dataAudioBuffer(data) {
 }
 
 function finishLoading() {
-    source.buffer = audioBuffer;
-    source.loop = false;
-    finishedLoading = true;
+        source.buffer = audioBuffer;
+        source.loop = false;
+        finishedLoading = true;
 
-    // GAINNODE VALUES FROM -1 TO 1 !
-    gainNode.gain.value = -0.5; //-0.9;
+        // GAINNODE VALUES FROM -1 TO 1 !
+        gainNode.gain.value = -0.5; //-0.9;
 
-    console.log(gainNode.gain.value);
+        console.log(gainNode.gain.value);
 
-    setReadyState();
+        setReadyState();
+
 }
 
 function playAudio() {
@@ -130,7 +130,7 @@ function mute() {
 
 function setMicrophone() {
     if(!navigator.mediaDevices.getUserMedia) {
-        alert("Whoops, your browser doesn't support JavaScript mediaDevices!")
+        alert("Whoops, your browser doesn't support JavaScript mediaDevices!");
         return false;
     } else {
         micAllowed = true;
@@ -163,6 +163,10 @@ function setReadyState(){
     console.log(readyToPlay);
 }
 
+/**
+ *
+ * @returns double representing the durat ion in milliseconds
+ */
 function getSongLength() {
     if(audioBuffer) {
         return audioBuffer.duration;

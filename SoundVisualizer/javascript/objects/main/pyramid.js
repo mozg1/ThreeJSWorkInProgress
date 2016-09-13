@@ -8,7 +8,7 @@ define(["three", "shaders"],
 
         var Pyramid = function () {
 
-            var TILE_SIZE = 10;
+            var TILE_SIZE = 50;
 
             this.geometry = new THREE.CylinderBufferGeometry( 1, TILE_SIZE*3, TILE_SIZE*3, 4 );
 
@@ -24,9 +24,6 @@ define(["three", "shaders"],
 
             };
 
-            var attributes = this.geometry.attributes;
-            console.log(attributes);
-
             var shaderMaterial = new THREE.ShaderMaterial({
                 uniforms: uniforms,
                 fragmentShader: Shaders.getFragmentShader('sphere'),
@@ -36,7 +33,7 @@ define(["three", "shaders"],
 
             this.mesh = new THREE.Mesh( this.geometry, shaderMaterial );
 
-            this.mesh.name = "pyramidMesh";
+            this.mesh.name = "mainPyramidMesh";
 
             this.getMesh = function() {
                 return this.mesh;

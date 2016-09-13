@@ -3,25 +3,24 @@ define(["three", "shaders"],
 
         "use strict";
 
-        var Ray = function () {
+        var frontalPlane = function () {
 
-            this.geometry = new THREE.PlaneBufferGeometry(8192, 6, 80, 16);
+            this.geometry = new THREE.PlaneBufferGeometry(1000, 1000, 1000, 16);
 
             var material = new THREE.MeshLambertMaterial( {
-                color: 0xffffff, emissive: 0x00ff00, reflectivity:100,
-                transparent : true,
-                opacity: 0.5
+                color: 0xffffff, emissive: 0xffffff, reflectivity:100, transparent : true,
+                opacity: 0.0
             } );
 
             this.mesh = new THREE.Mesh(this.geometry, material);
 
-            this.mesh.name = "rayMesh";
+            this.mesh.name = "frontalPlaneMesh";
 
             this.getMesh = function() {
                 return this.mesh;
             };
         };
 
-        return Ray;
+        return frontalPlane;
 
     }));

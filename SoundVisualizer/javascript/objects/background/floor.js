@@ -10,7 +10,8 @@ define(["three", "shaders"],
         var Floor = function () {
 
             this.geometry = new THREE.PlaneBufferGeometry(20000, 20000, 50, 50);
-            this.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+            this.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+            this.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI));
 
             var displacement = new Float32Array(this.geometry.attributes.position.count * 3);
 
