@@ -1,22 +1,25 @@
 /**
  * Created by Alexander Zorin on 21.06.2016.
+ *
+ * Wichtigstens Animationsmodul
+ * verwaltet Objekterstellungs, Animations- und Löschmethoden
+ *
  */
-
 
 
 /* requireJS module definition */
 define(["three",
-        "controller",
         "sphereMain",
         "shape",
         "fftLines",
-        "bufferGeometry",
         "plane",
         "backgroundParticle",
         "curve",
+        "orbitalSphere",
+        "star",
         "octahedron",
         "pyramid",
-        "parametric",
+        "TParametric",
         "frontalPlane",
         "frontRay",
         "ray",
@@ -27,129 +30,121 @@ define(["three",
         "floor",
         "orbitcontrols"],
     (function(THREE,
-          //    Util,
-              Controller, SphereMain, Shape, fftLines, BufferGeometry, Plane, backgroundParticle, Curve, Octahedron, Pyramid, Parametric, FrontalPlane, FrontRay, Ray, Torus, TorusKnot, CircleWave, Connectingline, Floor, Orbitcontrols) {
+
+              SphereMain, Shape, fftLines, Plane, backgroundParticle, Curve, OrbitalSphere, Star, Octahedron, Pyramid, TParametric, FrontalPlane, FrontRay, Ray, Torus, TorusKnot, CircleWave, Connectingline, Floor, Orbitcontrols) {
 
         "use strict";
 
         /*
          * Scene constructor
          */
-        var Scene =  function(renderer, width, height) {
-
+        var Scene = function(renderer, width, height) {
 
             // the scope of the object instance basically means the viewport
             var scope = this;
 
+            /**
+             * Initialisiere den WebGL Rendererer
+             */
             scope.renderer = renderer;
             scope.t = 0.0;
+
+            /**
+             * Initialisiere neue Perspektivische Kamera, mit Sichtfeld von 45 Grad, Seitenverhältnis 1920/1080 und Sichtweite 0.1-40000
+             * @type {THREE.PerspectiveCamera}
+             */
 
             scope.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 40000);
             scope.camera.position.x = 0;
             scope.camera.position.y = 0;
             scope.camera.position.z = 2000;
+            scope.camera.lookAt(new THREE.Vector3(0,0,0));
 
+            /**
+             * Erstelle neues Scene Objekt zum Verwalten
+             * @type {THREE.Scene}
+             */
             scope.scene = new THREE.Scene();
-
-            var spotLight = new THREE.SpotLight(0xffffff);
-            spotLight.position.set(0, 0, -10);
-
-            spotLight.castShadow = true;
-
-            spotLight.shadow.mapSize.width = 1024;
-            spotLight.shadow.mapSize.height = 1024;
-
-            spotLight.shadow.camera.near = 0.1;
-            spotLight.shadow.camera.far = 20000;
-            spotLight.shadow.camera.fov = 66;
-
-            scope.scene.add(spotLight);
-
-            //LIGHTS
 
             renderer.setClearColor(new THREE.Color(0x000000));
 
-            //orig light
-            var light1 = new THREE.PointLight(0xFFFFFF, 1, 100);
-            scope.scene.add(light1);
-
-            //front light
-            var light2 = new THREE.PointLight(0xFFFFFF, 1, 100);
-            scope.scene.add(light2);
-
-            // -900, 100, 350
-            var light3 = new THREE.PointLight(0xFFFFFF, 1, 1000);
-            light3.position.set(0,100,-1500);
-
-            var light4 = new THREE.PointLight(0xffffff,1,100);
-            light4.position.set(0,0,-1500);
-            scope.scene.add(light4);
-
-
-            this.planetLight = function(){
-
-                var color = new THREE.Color(1,1,1);
-                var intensity = 1;
-
-                var aLight = new THREE.AmbientLight(color);
-                var dLight = new THREE.DirectionalLight(color, intensity);
-                dLight.name = "dLight";
-                dLight.position.set(-1,0,-0.3).normalize();
+            /**
+             * Erstelle Lichter
+             */
+            this.createLight = function(){
+                var aLight = new THREE.AmbientLight(0xFFFFFF);
+                var dLight = new THREE.DirectionalLight(0xFFFFFF, 1, 1000);
+                dLight.position.set(-1,0,-1);
                 scope.scene.add(aLight);
                 scope.scene.add(dLight);
-
             };
 
+            /**
+             * Erstelle Stats.js Panel
+             * @type {Stats}
+             */
+            // 0: fps, 1: ms, 2: mb, 3+: custom
+            var stats = new Stats();
+            stats.showPanel( 0 );
+
+            document.body.appendChild( stats.dom );
 
             /**
              * MAIN CONTROL FUNCTIONS
              */
 
-            /*
-             * drawing the scene
+            /**
+             * Zeichne die Szene mithilfe der Methoden renderer.render() und requestAnimationFrame()
+             * Zeige außerdem
              */
             this.draw = function () {
+                stats.begin();
+/*
+                setTimeout( function() {
+
+                    requestAnimationFrame(scope.draw);
+
+                }, 1000 / 30 );
+*/
+                scope.renderer.render(scope.scene, scope.camera);
+         //       controls.update();
+                if(scope.shouldAnimate == true) {
+                    animate()
+                }
 
                 requestAnimationFrame(scope.draw);
 
-                scope.renderer.render(scope.scene, scope.camera);
+                stats.end();
 
-         //       controls.update();
+            };
 
-                if(scope.shouldAnimate == true) {
-                    scope.animate()
+            var fftLinesArray = [];
+
+            /**
+             * Füge ein Objekt zur Szene hinzu
+             * @param object dessen Mesh hinzugefügt wird
+             * @param position aus einem 3-stelligen Positionsarray
+             */
+
+            this.addMesh = function (object, position) {
+
+                var mesh = object.getMesh();
+                mesh.position.set(position[0], position[1], position[2]);
+                scope.scene.add(mesh);
+
+                if(mesh.name == "fftLinesMesh") {
+                    console.log("added freqDomain");
+                    fftLinesArray.push(object);
                 }
 
             };
 
-            var objectArray = [];
-
-            this.addBufferGeometry = function (bufferGeometry, position) {
-
-                scope.currentMesh = bufferGeometry.getMesh();
-                scope.currentMesh.position.set(position[0], position[1], position[2]);
-                scope.scene.add(scope.currentMesh);
-
-                if(scope.currentMesh.name == "mainPyramidMesh") {
-                    console.log("added a pyramid");
-                    console.log(scope.scene.children.length);
-                    console.log(scope.scene.children[scope.scene.children.length-1]);
-                }
-
-                if(scope.currentMesh.name == "fftLinesMesh") {
-                    console.log("added freqDomain")
-                }
-
-                objectArray.push(bufferGeometry);
-            };
-
-
-            var particleArray = {
-                particles: []
-            };
 
             var levelHistory = [];
-
+            /**
+             * wird durch die Betätigung der Start oder Select Input Tasten verändert
+             * @type {boolean}
+             */
             scope.shouldAnimate = false;
 
             var startTime;
@@ -158,12 +153,28 @@ define(["three",
             var currentMainObject = [];
 
             var mainObjectTimer;
+            var shootDirection;
 
+            /**
+             * Setze ein Startobjekt als zentrales Hauptobjekt
+             * @param obj
+             */
             this.initializeMainObject = function(obj) {
                 currentMainObject.push(obj);
             };
 
+            /**
+             * Setzt den Animationsflag auf true
+             * Im Falle einer Musikdatei, berechne aus der Dateilänge die Länge der Lebdauer eines Zyklus von einem
+             * zentralen Hauptobjekt, und tausche die Objekte nach ABlauf dieser Zeit hintereinander aus, indem
+             * immer auf das aktuelle Objekt geprüft wird
+             */
             this.activateAnimation = function() {
+                if(micAllowed) {
+                    scope.shouldAnimate = true;
+
+                    return;
+                }
                 // set startTime in seconds
                 startTime = Math.round(window.performance.now()/1000);
                 // round duration to whole seconds
@@ -175,23 +186,16 @@ define(["three",
 
                 mainObjectTimer = setInterval(function() {
                         console.log("mainchanger " + duration + " " + mainObjectDuration + " current: " + (Math.round(window.performance.now()/1000) - startTime));
-                        /*
-                         if((Date.now() - startTime) % mainObjectDuration == 0) {
-                         // change main object when time passed is a multiple of mainObjectDuration
-
-                         //        scope.removeMainObject("sphereMesh");
-                         scope.addBufferGeometry(new TorusKnot(), [0,0,0]);
-                         }
-                         */
 
                     if(currentLevel != 0) {
+
 
                         switch (currentMainObject[0].mesh.name) {
                             case "mainSphereMesh" :
                                 scope.scene.remove(currentMainObject[0].mesh);
                                 currentMainObject.splice(0, 1);
                                 currentMainObject.push(new TorusKnot());
-                                scope.addBufferGeometry(currentMainObject[0], [0, 0, 0]);
+                                scope.addMesh(currentMainObject[0], [0, 0, -250]);
 
                                 console.log(currentMainObject);
 
@@ -204,9 +208,9 @@ define(["three",
                                 currentMainObject.push(new Pyramid());
                                 currentMainObject.push(new Pyramid());
 
-                                scope.addBufferGeometry(currentMainObject[0], [-300, 0, 0]);
-                                scope.addBufferGeometry(currentMainObject[1], [0, 0, 0]);
-                                scope.addBufferGeometry(currentMainObject[2], [300, 0, 0]);
+                                scope.addMesh(currentMainObject[0], [-300, 0, -250]);
+                                scope.addMesh(currentMainObject[1], [0, 0, -250]);
+                                scope.addMesh(currentMainObject[2], [300, 0, -250]);
 
                                 console.log(currentMainObject);
 
@@ -221,65 +225,176 @@ define(["three",
                                 currentMainObject.splice(2, 1);
                                 currentMainObject = [];
 
-                                createTrianguloid();
+                                currentMainObject.push(new Torus());
+                                scope.addMesh(currentMainObject[0], [0,0,-250]);
 
                                 console.log(currentMainObject);
 
                                 break;
 
-                            case "mainParametricMesh" :
+                            case "mainTorusMesh" :
                                 scope.scene.remove(currentMainObject[0].mesh);
                                 currentMainObject.splice(0, 1);
                                 currentMainObject.push(new SphereMain());
-                                scope.addBufferGeometry(currentMainObject[0], [0, 0, 0]);
+                                scope.addMesh(currentMainObject[0], [0, 0,-250]);
 
                                 break;
                         }
                     }
                 }, mainObjectDuration*1000);
+
             };
-
-
 
             this.deactivateAnimation = function() {
                 scope.shouldAnimate = false;
                 clearInterval(mainObjectTimer);
             };
 
+            /**
+             * Kameraanimationsmethoden. Bei aktivierter Kameraanimation, wird die Kamera weg von den FFT-Lines gedreht
+             * @type {boolean}
+             */
 
-            this.animate = function () {
+            scope.animateCamera = false;
+
+            this.activateCameraAnimation = function() {
+                scope.camera.position.z = scope.camera.position.z*(-1);
+                scope.animateCamera = true;
+                scope.camera.lookAt(new THREE.Vector3(0,0,0));
+            };
+
+            this.deactivateCameraAnimation = function() {
+                scope.camera.position.z = scope.camera.position.z*(-1);
+                scope.animateCamera = false;
+                scope.camera.lookAt(new THREE.Vector3(0,0,0));
+            };
+
+            /**
+             * Haupt-Animationsmethode
+             */
+
+            function animate() {
 
                 if(!readyToPlay) {
                     return;
                 }
 
-                getContinuousAudioData();
+                // Audio functionality
+                getContinousAudioData();
                 setLevel();
+                checkLevel();
+                detectKick();
 
+                // camera animation
+                animateCamera();
+                checkCameraPosition();
+
+                // main objects
                 animateMainObject();
                 visualizeLine();
+
+                // environment objects
                 animateFloor();
-                animateParticleSpiral();
-                animateBackgroundNoise();
-                animateCamera();
-                animatePlanes();
                 drawFrequencyDomain();
-                animateCurves();
+                animateBackground();
+
+                // particles
+                animateSpiralParticles();
+                animateBackgroundParticles();
+                createAndShootContinousParticles();
+                animateOrbit();
+                eraseOrbit();
+
+                // 3D-Objects
+                animatePlanes();
+        //        animateCurves();
                 animate3DNoise();
-
-                moveRays();
-                shootRays();
-
-                animateShapes();
+                animatePoints();
                 animateCircleWaves();
-                removeChecker();
-                detectKick();
-                checkForLevels();
+                animateParametric();
 
+                // Rays
+                moveSkyRays();
+                shootFastRays();
                 animateFrontalRays();
                 flickerLight();
 
-            };
+                // Garbage-Collector
+                removeChecker();
+
+            }
+
+            var raysActive = true;
+            var threeDObjects = true;
+            var particlesActive = true;
+            var envObjectsActive = true;
+            var mainObjectsActive = true;
+
+            /**
+             *
+             * LEVEL MEMORY LOOP
+             *
+             */
+
+            var currentLevel;
+
+            /**
+             * Lies freqAverage aus und setze eine Pegelstufe
+             */
+            function setLevel() {
+
+                if(freqAverage < 0.1) {
+                    currentLevel = 0;
+                } else if (freqAverage >= 0.1 && freqAverage < 0.16) {
+
+                    currentLevel = 1;
+
+                } else if (freqAverage >= 0.16 && freqAverage < 0.20) {
+
+                    currentLevel = 2;
+
+                } else if (freqAverage >= 0.20 && freqAverage < 0.24) {
+
+                    currentLevel =3;
+
+                } else if(freqAverage >= 0.24 && freqAverage < 0.28) {
+
+                    currentLevel = 4;
+
+                } else if (freqAverage >= 0.28 && freqAverage < 0.31) {
+
+                    currentLevel = 5;
+
+                } else if(freqAverage >= 0.31 && freqAverage < 0.33) {
+
+                    currentLevel = 6;
+
+                } else if(freqAverage >= 0.33 && freqAverage < 0.35) {
+
+                    currentLevel = 7;
+
+                } else if(freqAverage >= 0.35 && freqAverage < 0.40) {
+
+                    currentLevel = 8;
+
+                } else if(freqAverage >= 0.40 && freqAverage < 0.45) {
+
+                    currentLevel = 9;
+
+                } else if(freqAverage >= 0.45 && freqAverage < 0.52) {
+
+                    currentLevel = 10;
+
+                } else if(freqAverage >= 0.52 && freqAverage < 0.60) {
+
+                    currentLevel = 11;
+                }
+            }
+
+            /**
+             * Pegelstufen als abstrahierter durchschnittlicher Gesamtpegel
+             * @type {number}
+             */
 
             var L0 = 0;
             var L1 = 1;
@@ -292,308 +407,10 @@ define(["three",
             var L8 = 8;
             var L9 = 9;
 
-            function checkforPeaks(peak) {
-                // make sure only the last 50 levels are present
-                if(levelHistory.length > 50) {
-                    levelHistory.splice(0,1);
-                }
-                /*
-                if(levelHistory[4] > levelHistory[3] && levelHistory[3] > levelHistory[2] && levelHistory[2] > levelHistory[1]) {
-
-                }
-                */
-                var peakcontained = 0;
-
-                for(var i= 0; i<levelHistory.length; i++) {
-                    if(levelHistory[i] == peak) {
-                        peakcontained++;
-                    }
-                }
-
-                return peakcontained;
-            }
-
-
-            function checkForLevels() {
-                /*
-                if(levelFive) {
-                    console.log("oh oh");
-
-                    setTimeout(function(){
-                        // http://stackoverflow.com/questions/5875402/how-to-call-this-function-within-settimeout-in-js
-                        scope.createDots();
-                        console.log("jaawohl");
-                        animateParticleSpiral();
-                    }, 10);
-                    levelFiveActive = true;
-                }
-*/
-                switch(currentLevel) {
-                    case 0 :
-                        levelZeroActive = true;
-                        console.log("level 0 ");
-                        levelHistory.push(L0);
-                        break;
-                    case 1 :
-                        levelOneActive = true;
-                        console.log("level 1");
-                        //              scope.createCurves();
-                        levelHistory.push(L1);
-                        break;
-
-                    case 2 :
-                        levelTwoActive = true;
-                        scope.create3DNoise();
-                //        stopRayAnimation();
-
-                        console.log("level 2");
-                        levelHistory.push(L2);
-                        break;
-
-                    case 3 :
-                        scope.createBackgroundNoise(); // mehr kleine Partikel wünschenswert
-                        levelThreeActive = true;
-                        slowRays = true;
-                        scope.createSlowRays();
-
-                        console.log("level 3");
-                        levelHistory.push(L3);
-                        break;
-
-                    case 4 :
-                        deleteCircleWaves(); // hier passiet noch ganz wenig
-                        scope.createDots();
-                        levelFourActive = true;
-
-                        console.log("level 4");
-                        levelHistory.push(L4);
-                        break;
-
-                    case 5 :
-                        scope.createPlanes();  // hier passiert noch ganz wenig
-                        levelFiveActive = true;
-                        stopRayAnimation();
-                        console.log("level 5");
-                        levelHistory.push(L5);
-                        break;
-
-                    case 6 :
-                        scope.createShapes();
-                        moveBackground();
-                        // flacker background
-                        // disconnect shapes
-                        // change background particle movement
-                        levelSixActive = true;
-
-                        console.log("level 6");
-                        levelHistory.push(L6);
-                        break;
-
-                    case 7 :
-                        scope.createCircleWaves(); // frontRays
-                        createFrontalRays();
-
-                        // connect shapes
-                        levelSevenActive = true;
-
-                        console.log("level 7");
-                        levelHistory.push(L7);
-
-                        stroboActive = false;
-                        shootContinousParticles = false;
-
-                        break;
-
-                    case 8 : // Spiralenwechsel
-                        drawTimeDomain();
-                        scope.createFastRays();
-                        fastRays = true;
-
-                        console.log("Level 8");
-                        levelEightActive = true;
-                        levelHistory.push(L8);
-
-                        shootContinousParticles = true;
-                        createContinousParticles();
-
-                        break;
-
-                    case 9 : // Hauptfigur-wechsel  // Strobo
-                        console.log("level 9");
-                        levelNineActive = true;
-                        levelHistory.push(L9);
-
-
-                        createContinousParticles();
-                        stroboActive = true;
-                        break;
-
-                    case 10 : console.log("level 10"); // totaler Szenenwechsel?
-                        levelTenActive = true;
-                        break;
-
-                    case 11 : console.log("wow");
-                        levelElevenActive = true;
-                        break;
-
-                }
-
-            }
-
             /**
-             * SOUND MODULE
+             * Switches
+             * @type {boolean}
              */
-
-            var audioData = getAudioFreqData();
-            var freqAverage = getFreqAverage(audioData);
-
-
-            // freqByteData.length = fftSize/2
-            function getAudioFreqData() {
-                if (!readyToPlay) {
-
-
-                } else {
-                    analyser.getByteFrequencyData(freqByteData);
-
-                //    console.log(freqByteData);
-                    return freqByteData;
-                }
-            }
-
-            function getAudioTimeData() {
-                if (!readyToPlay) {
-
-
-                } else {
-                    analyser.getByteTimeDomainData(freqByteData);
-          //          console.log(analyser.getByteTimeDomainData(freqByteData));
-                    return freqByteData;
-                }
-            }
-
-            /**
-             * AUDIO - FUNCTIONALITY
-             *
-             *
-             */
-
-            function getFreqAverage(freqByteData) {
-
-                if (!readyToPlay)
-                    return;
-            //    analyser.getByteFrequencyData(freqByteData);
-
-                //          console.log("fBD"+freqByteData);
-
-                var length = freqByteData.length;
-
-                //GET AVG LEVEL
-                var sum = 0;
-                //         console.log(length);
-                for (var j = 0; j < length; ++j) {
-                    // hier kann man Verhältnisse von Frequenzgängen berechnen, innerhalb einer Samplelänge
-                    sum += freqByteData[j];
-                }
-
-                // Calculate the average frequency of the samples in the bin
-                var aveLevel = sum / length;
-
-                normLevel = (aveLevel / 256); //256 is the highest a freq data can be
-
-                //      console.log(normLevel);
-
-                return normLevel;
-            }
-
-            /**
-             * CONSTANTLY UPDATE AUDIOBUFFER FOR VISUALIZATION
-             */
-            function getContinuousAudioData() {
-                audioData = getAudioFreqData();
-                freqAverage = getFreqAverage(audioData);
-            }
-
-
-
-            function getFreqRange(lower, upper) {
-                if(!readyToPlay) {
-                    return;
-                }
-                var fftData = getAudioFreqData();
-
-                var rangeData =[];
-                for(var i=lower, j=0; i<upper; i++,j++) {
-                    rangeData[j] = fftData[i];
-                }
-                return rangeData;
-            }
-
-            function getSubbass() {
-                return getFreqRange(0,22);
-            }
-
-            function getBassband() {
-                return getFreqRange(23,111);
-
-            }
-
-            function getLowmid() {
-                return getFreqRange(112,297);
-            }
-
-            function getMidrange() {
-                return getFreqRange(298,743);
-            }
-
-            function getUppermids() {
-                return getFreqRange(744,2229);
-
-            }
-
-            function getBrightness() {
-                return getFreqRange(2230,3715);
-            }
-
-            function getHighFreq() {
-                return getFreqRange(3716,5944);
-            }
-
-            function getUltraHighFreq() {
-                return getFreqRange(5945,8192);
-            }
-
-            function detectKick() {
-                var fullFreqAverage = getFreqAverage(getAudioFreqData());
-                var subBassAverage = getFreqAverage(getSubbass());
-                var bassBandAverage = getFreqAverage(getBassband());
-                var lowMidAverage = getFreqAverage(getLowmid());
-
-                var highFreqAverage = getFreqAverage(getBrightness());
-
-                // (band - sub) / gesamt > 3,5
-
-    //            console.log(bassBandAverage +" " + fullFreqAverage);
-
-          //      console.log("band: " + bassBandAverage + " high: " + highFreqAverage + " full: " + fullFreqAverage);
-
-
-                if(bassBandAverage > highFreqAverage) {
-                    if(bassBandAverage > 0.65 && fullFreqAverage > 0.2) {
-            //            console.log("BEAT!");
-                    }
-                    if(bassBandAverage > 0.65 && fullFreqAverage < 0.2) {
-            //            console.log("BEAT2!");
-                    }
-                }
-
-            }
-
-
-            /**
-             * ANIMATION / VISUALIZATION
-             */
-
             var levelZeroActive = false;
             var levelOneActive = false;
             var levelTwoActive = false;
@@ -608,69 +425,208 @@ define(["three",
             var levelElevenActive = false;
 
 
+            /**
+             * Haupt LML-Methode
+             * Verwaltet Animation, Objekterstellung, Switches, Flags
+             */
+            function checkLevel() {
 
-            this.createFFTLines = function() {
-                scope.addBufferGeometry(new fftLines(), [0,-200,0]);
-            };
+                switch(currentLevel) {
+                    case 0 :
+                        levelZeroActive = true;
+                        stopRayAnimation("sky");
+                        scope.createOrbitSpheres();
+                        scope.createBackground();
 
-            // call this.function with scope.function from normal functions
+                //        console.log("level 0 ");
+                        levelHistory.push(L0);
+                        break;
+                    case 1 :
+                        levelOneActive = true;
+                        levelFourActive = false;
+                        levelThreeActive = false;
 
-            function drawFrequencyDomain() {
+                //        console.log("level 1");
+                        levelHistory.push(L1);
+                        break;
 
-   //             var fftLines = scope.scene.getObjectById("fftLinesMesh");
-                // TODO: Super Bug mit unauffindbarem getObjectById fftLinesMesh
+                    case 2 :
+                        levelTwoActive = true;
+                        levelFiveActive = false;
 
-                for(var i = 0; i<objectArray.length;i++) {
-                    if(objectArray[i].mesh.name == "fftLinesMesh") {
-                        fftLines = objectArray[i];
+                        scope.create3DNoise();
+
+                //        console.log("level 2");
+                        levelHistory.push(L2);
+                        break;
+
+                    case 3 :
+                        levelThreeActive = true;
+                        levelSixActive = false;
+                        levelSevenActive = false;
+
+                        skyRays = true;
+                        stroboActive = false;
+
+                        scope.createBackgroundParticles();
+                        scope.createSkyRays();
+
+                        createParametric();
+
+                //        console.log("level 3");
+                        levelHistory.push(L3);
+                        break;
+
+                    case 4 :
+                        levelFourActive = true;
+                        levelTwoActive = false;
+                        levelEightActive = false;
+
+
+                        stopRayAnimation("fast");
+                        deleteCircleWaves();
+
+                        scope.createSpiral();
+                        scope.createPoints();
+
+                //        console.log("level 4");
+                        levelHistory.push(L4);
+                        break;
+
+                    case 5 :
+                        levelFiveActive = true;
+                        levelNineActive = false;
+
+                        stopRayAnimation("sky");
+
+                        scope.createPlanes();
+                        createParametric();
+
+                //        console.log("level 5");
+                        levelHistory.push(L5);
+                        break;
+
+                    case 6 :
+                        levelSixActive = true;
+                        levelFourActive = false;
+                        levelFiveActive = false;
+
+                //        console.log("level 6");
+                        levelHistory.push(L6);
+                        break;
+
+                    case 7 :
+                        levelSevenActive = true;
+                        levelFiveActive = false;
+
+                        stroboActive = false;
+                        shootContinousParticles = false;
+
+                        scope.createCircleWaves();
+                        createFrontalRays();
+
+                //        console.log("level 7");
+                        levelHistory.push(L7);
+                        break;
+
+                    case 8 :
+                        levelEightActive = true;
+                        levelSixActive = false;
+                        levelTenActive = false;
+                        fastRays = true;
+                        shootContinousParticles = true;
+
+                        scope.createFastRays();
+
+                //        console.log("Level 8");
+                        levelHistory.push(L8);
+                        break;
+
+                    case 9 :
+                        levelNineActive = true;
+                        stroboActive = true;
+
+                //        console.log("level 9");
+                        levelHistory.push(L9);
+                        break;
+
+                    case 10 :
+                        levelTenActive = true;
+
+                //        console.log("level 10");
+                        break;
+
+                    case 11 :
+                //        console.log("wow"); // kam bisher noch nie Zustande!
+                        levelElevenActive = true;
+                        break;
+
+                }
+
+            }
+
+            /**
+             * Untersucht die levelHistory auf die angegebene Anzahl an Stellen, minimal so viele wie bereits geschrieben
+             * wurden, maximal 1000
+             * @param peak Pegelstufe
+             * @param historySize Memory-Größe
+             * @returns {number} Das quantitative Vorkommen einer Pegelstufe
+             */
+            function checkForPeaks(peak, historySize) {
+                // if no historySize specified, make sure either only last 1000 states are checked, or as many as have
+                // yet been present
+                if(historySize > 1000 || historySize < 0 || historySize == undefined) {
+                    historySize = levelHistory.length;
+                }
+                // make sure only the last 1000 levels are present
+                if(levelHistory.length > 1000) {
+                    levelHistory.splice(0,1);
+                }
+
+                var peakcontained = 0;
+
+                for(var i= levelHistory.length-historySize; i<levelHistory.length; i++) {
+                    if(levelHistory[i] == peak) {
+                        peakcontained++;
                     }
                 }
 
-                if(!fftLines ) {
-                    scope.addBufferGeometry(new fftLines(), [0,-200,0]);
-                    console.log("created FFT")
-                } else if(readyToPlay) {
-
-                    var freqByteData = getAudioFreqData();
-                    fftLines.setFrequencyPosition(freqByteData);
-                    fftLines.line.geometry.verticesNeedUpdate = true;
-                }
-
+                return peakcontained;
             }
 
-            function visualizeLine() {
-                visualize(scope.scene.getObjectByName("line1"));
-                visualize(scope.scene.getObjectByName("line2"));
+            /**
+             * ANIMATION / VISUALIZATION
+             */
 
-            }
-
-
-            var currentLevel;
             var currentColorMode = 0;
 
-            var color = [ [ [5, 6, 8],
-                            [4, 5, 8],
-                            [3, 6, 4.5],
-                            [1.2, 4.5, 2.2],
-                            [2.5, 5, 1],
-                            [2, 4, 2],
-                            [3, 3, 1.7],
-                            [3, 1.5, 0.5],
-                            [3, 1, 1.5],
-                            [2, 1.5, 2.5],
-                            [1.5, 1, 2] ],
+            /**
+             * Farbmodi mit RGB-Farbexponenten
+             * @type {*[]}
+             */
+            var colorArray = [ [ [5, 6, 8],
+                [4, 5, 8],
+                [3, 6, 4.5],
+                [1.2, 4.5, 2.2],
+                [2.5, 5, 1],
+                [2, 4, 2],
+                [3, 3, 1.7],
+                [3, 1.5, 0.5],
+                [3, 1, 1.5],
+                [2, 1.5, 2.5],
+                [1.5, 1, 2] ],
 
-                    [ [5, 6, 8],
-                        [4, 5, 8],
-                        [3, 4, 4.5],
-                        [2, 3, 4],
-                        [1.5, 4, 5],
-                        [2, 3, 3.5],
-                        [2, 2, 2.5],
-                        [2, 2, 3],
-                        [2.5, 2.5, 2],
-                        [2, 2, 1],
-                        [1.5, 1, 2] ],
+                [ [5, 6, 8],
+                    [4, 5, 8],
+                    [3, 4, 4.5],
+                    [2, 3, 4],
+                    [1.5, 2.5, 4],
+                    [1.5, 3, 3.5],
+                    [2, 2, 3],
+                    [2, 2.5, 3],
+                    [2.5, 2.5, 2],
+                    [2, 2, 1],
+                    [1.5, 1, 2] ],
 
                 [ [8, 6, 5],
                     [8, 5, 4],
@@ -684,51 +640,114 @@ define(["three",
                     [2, 2, 1.5],
                     [1.5, 1, 2] ] ];
 
+
             /**
-             *
+             * Setze Farbmodus
              * @param mode - value between 0 and 2
              */
             this.setCurrentMode = function(mode) {
-                  currentColorMode = mode;
-                  console.log(currentColorMode);
+                currentColorMode = mode;
+                console.log(currentColorMode);
             };
 
+            /**
+             * Lies entsprechende Farbe zum Modus aus
+             * @param mode
+             * @param level
+             * @returns {THREE.Color}
+             */
             function setCurrentColor(mode, level) {
-     //           console.log("mode: " +mode+" level: "+level);
-                var r = color[mode][level][0];
-                var g = color[mode][level][1];
-                var b = color[mode][level][2];
+                var r = colorArray[mode][level][0];
+                var g = colorArray[mode][level][1];
+                var b = colorArray[mode][level][2];
                 return new THREE.Color(freqAverage*r, freqAverage*g, freqAverage*b);
             }
 
 
+            // call this.function with scope.function from normal functions
+
             /**
-             * object must be mesh
+             * Zeichne das lineare Frequenzspektrum
+             */
+            function drawFrequencyDomain() {
+
+                // TODO: Super Bug mit unauffindbarem getObjectById fftLinesMesh
+
+                var fftLines;
+
+                for(var i = 0; i<fftLinesArray.length;i++) {
+                    if(fftLinesArray[i].mesh.name == "fftLinesMesh") {
+                        fftLines = fftLinesArray[i];
+                    }
+                }
+
+                if(!fftLines ) {
+                    scope.addMesh(new fftLines(), [0,-200,0]);
+                    console.log("created FFT")
+                } else if(readyToPlay) {
+                    var freqBytes = getAudioFreqData();
+                    fftLines.setFrequencyPosition(freqBytes);
+                    fftLines.line.geometry.verticesNeedUpdate = true;
+                }
+
+            }
+
+            /**
+             * Führe Audiovisualisierung auf der Oberfläche der Lines durch
+             */
+            function visualizeLine() {
+                visualize(scope.scene.getObjectByName("line1"));
+                visualize(scope.scene.getObjectByName("line2"));
+            }
+
+
+            /**
+             * Führe Audiovisualisierung auf der Oberfläche eines angegebenen Hauptobjekts durch
+             * Dreh das Objekt, sofern es sich nicht um eine Line handelt
+             * Skaliere zusätzlich, wenn es sich um ein zentrales Hauptobjekt handelt
              * @param mesh
              */
 
-            var time = Date.now() * 0.01;
-
             function visualize(mesh) {
-
                 var displacement = mesh.geometry.attributes.displacement;
 
                 if(mesh.name != "line1" && mesh.name != "line2")  {
                     if(freqAverage < 0.2) {
-                        mesh.rotation.z = freqAverage*0.1+time/100;
-                    } else if(freqAverage > 0.2) {
-                        mesh.rotation.y = freqAverage*0.1+time/100;
-                        mesh.rotation.z = freqAverage*0.1+time/100;
+                        mesh.rotation.z += freqAverage*0.03;
+                    } else if(freqAverage > 0.2 || freqAverage < 0.5) {
+                        mesh.rotation.y += freqAverage*0.03;
+                        mesh.rotation.z -= freqAverage*0.03;
+                    } else {
+                        mesh.rotation.x += freqAverage*0.04;
+                        mesh.rotation.z += freqAverage*0.04;
                     }
                     mesh.material.uniforms.amplitude.value = freqAverage*3;
                 }
 
-                if (audioBuffer) {
-
+                if (readyToPlay) {
                     var trueColor = setCurrentColor(currentColorMode, currentLevel);
 
+        //            console.log(freqData.length)
+        //            console.log(displacement.count)
+
                     for (var i = 0; i < displacement.count; i++) {
-                        mesh.geometry.attributes.displacement.array[i] = (audioData[i]);
+                        mesh.geometry.attributes.displacement.array[i] = (freqData[i]);
+                        mesh.material.uniforms.color.value = trueColor;
+                    }
+
+                    if(mesh.name.indexOf("main") !== -1 && (levelFourActive || levelFiveActive || levelSixActive || levelSevenActive)) {
+                        mesh.scale.set(freqAverage*5, freqAverage*5, freqAverage*5);
+                    }
+
+
+                    mesh.geometry.attributes.displacement.needsUpdate = true;
+                }
+
+                if (micAllowed) {
+                    trueColor = setCurrentColor(currentColorMode, currentLevel);
+
+                    for (i = 0; i < displacement.count; i++) {
+                        mesh.geometry.attributes.displacement.array[i] = (freqData[i]);
                         mesh.material.uniforms.color.value = trueColor;
                     }
 
@@ -736,180 +755,227 @@ define(["three",
                 }
             }
 
-            function setLevel() {
-
-                if(freqAverage < 0.1) {
-                        currentLevel = 0;
-                } else if (freqAverage >= 0.1 && freqAverage < 0.16) {
-
-                        currentLevel = 1;
-
-                } else if (freqAverage >= 0.16 && freqAverage < 0.20) {
-
-                        currentLevel = 2;
-
-                } else if (freqAverage >= 0.20 && freqAverage < 0.24) {
-
-                        currentLevel =3;
-
-                } else if(freqAverage >= 0.24 && freqAverage < 0.28) {
-
-                        currentLevel = 4;
-
-                } else if (freqAverage >= 0.28 && freqAverage < 0.31) {
-
-                        currentLevel = 5;
-
-                } else if(freqAverage >= 0.31 && freqAverage < 0.33) {
-
-                        currentLevel = 6;
-
-                } else if(freqAverage >= 0.33 && freqAverage < 0.35) {
-
-                        currentLevel = 7;
-
-                } else if(freqAverage >= 0.35 && freqAverage < 0.40) {
-
-                        currentLevel = 8;
-
-                } else if(freqAverage >= 0.40 && freqAverage < 0.45) {
-
-                        currentLevel = 9;
-
-                } else if(freqAverage >= 0.45 && freqAverage < 0.52) {
-
-                        currentLevel = 10;
-
-                } else if(freqAverage >= 0.52 && freqAverage < 0.60) {
-
-                        currentLevel = 11;
-                }
-            }
+            /**
+             * Animiere und führe Audiovisualisierung auf dem zentralen HAuptobjekt durch
+             */
 
             function animateMainObject() {
                 var obj;
-
-                for(var i=0;i<objectArray.length;i++) {
-                    if(objectArray[i]) {
-                        if(objectArray[i].mesh.name.indexOf("main") !== -1) {
-                            obj = objectArray[i].mesh;
-                            visualize(obj);
-                        }
-                    }
+                for(var i=0;i<currentMainObject.length;i++) {
+                    obj = currentMainObject[i].mesh;
+                    visualize(obj);
                 }
             }
+
+            /**
+             * Visualisiere und animiere den Boden
+             */
 
             function animateFloor() {
                 var floor = scope.scene.getObjectByName("floorMesh");
 
+                moveFloor();
+
                 if(floor) {
                     var displacement = floor.geometry.attributes.displacement;
 
-                    if (audioBuffer) {
+                    if (readyToPlay) {
                         for (var i = 0; i < displacement.count; i++) {
-                            floor.geometry.attributes.displacement.array[i] = (audioData[i]*0.5);
-                            floor.material.uniforms.color.value = new THREE.Color("rgb("+180*Math.floor(freqAverage*9) +","+ 25*Math.floor(freqAverage*15) +","+ 220+")");
+                            floor.geometry.attributes.displacement.array[i] = (freqData[i]*0.5);
+                            floor.material.uniforms.color.value = new THREE.Color( freqAverage*2, freqAverage*2, freqAverage*8 );
                         }
                         floor.geometry.attributes.displacement.needsUpdate = true;
                     }
                 }
-
             }
 
-            var torusT = 0;
-
-            function animateTorus() {
-
-                var torus = scope.scene.getObjectByName("torusMesh");
-                torusT += 0.01;
-                var p=0;
-                torus.position.x = 1000*Math.cos(torusT) + p;
-                torus.position.z = 1000*Math.sin(torusT) + p;
-                torus.rotation.y = torusT*0.1;
+            function moveFloor() {
+                var floor = scope.scene.getObjectByName("floorMesh");
+                if(levelZeroActive || levelOneActive || levelTwoActive) {
+                    floor.rotation.y += 0.001 * freqAverage;
+                }
+                if(levelThreeActive || levelFourActive || levelFiveActive) {
+                    floor.rotation.y -= 0.002 * freqAverage;
+                }
+                if(levelSixActive || levelSevenActive || levelEightActive) {
+                    floor.rotation.y -= 0.001 * freqAverage;
+                }
+                if(levelNineActive) {
+                    floor.rotation.y += 0.001 * freqAverage;
+                }
             }
 
-            var h = 10;
-            var uSpiral = 200;
+
+            /**
+             * Spiralenobjekt
+             * @type {number}
+             */
+
+            var r = 10;
+            var uSpiral = 257;
             var vSpiral = -50;
 
-            var xCyl = 0;
-            var yCyl = -50;
-            var zCyl = 0;
+            var spiralParticleArray = [];
 
-            var xOrb = 0;
-            var yOrb = 0;
-            var zOrb = -100;
+            this.createSpiral = function() {
 
-            this.createDots = function() {
-                /*
-                 Kreis: x = 20*Math.cos(x) + factor, y+=1 z = 20*Math.cos(z) + factor
 
-                 Spirale: x = (1+angle)*Math.cos(angle), z = (1+angle)*Math.sin(angle)
-                 */
-
-                if(particleArray.particles.length < 200) {
+                if(spiralParticleArray.length < 200) {
                     var particle = new Shape();
 
                     /**
                      * 200 archimedical spiral particles
                      */
-                        this.addBufferGeometry(particle, [(uSpiral) * Math.cos(uSpiral), h * vSpiral, (uSpiral) * Math.sin(uSpiral)]);
+                        this.addMesh(particle, [(uSpiral) * Math.cos(uSpiral), r * vSpiral, (uSpiral) * Math.sin(uSpiral)]);
                         var particleObject = {
-                            spiralParticle: particle,
-                            uvposition: [uSpiral, vSpiral],
+                            object: particle,
+                            uvangles: [uSpiral, vSpiral],
                             direction: 1
                         };
 
-                        particleArray.particles.push(particleObject);
+                        spiralParticleArray.push(particleObject);
 
                 }
             };
 
-            function animateParticleSpiral() {
-                if(particleArray.particles.length == 0) {
+            function animateSpiralParticles() {
+                if(spiralParticleArray.length == 0) {
                     return;
                 }
 
+
                 if(!levelEightActive) {
 
-                        for (var j = 0; j < particleArray.particles.length; j++) {
-                            //       console.log(particleArray.particles[j]);
-                            if (particleArray.particles[j].spiralParticle.mesh.position.y > 500) {
-                                particleArray.particles[j].direction = 0;
-                            } else if (particleArray.particles[j].spiralParticle.mesh.position.y < -500) {
-                                particleArray.particles[j].direction = 1;
+                        for (var j = 0; j < spiralParticleArray.length; j++) {
+                            if (spiralParticleArray[j].object.mesh.position.y > 500) {
+                                console.log("spiralParticleArray[j]: " + spiralParticleArray[j].uvangles[0]);
+                                spiralParticleArray[j].direction = 0;
+                            } else if (spiralParticleArray[j].object.mesh.position.y < -500) {
+                                spiralParticleArray[j].direction = 1;
                             }
 
-                            if (particleArray.particles[j].direction == 0) {
-                                //        console.log("down");
-                                particleArray.particles[j].uvposition[0] -= 0.1;
-                                particleArray.particles[j].uvposition[1] -= 0.1;
+                            if (spiralParticleArray[j].direction == 0) {
+                                spiralParticleArray[j].uvangles[0] -= 0.1;
+                                spiralParticleArray[j].uvangles[1] -= 0.1;
 
                             } else {
-                                //        console.log("up");
-                                particleArray.particles[j].uvposition[0] += 0.1;
-                                particleArray.particles[j].uvposition[1] += 0.1;
+                                spiralParticleArray[j].uvangles[0] += 0.1;
+                                spiralParticleArray[j].uvangles[1] += 0.1;
                             }
 
-                            var u = particleArray.particles[j].uvposition[0];
-                            var v = particleArray.particles[j].uvposition[1];
+                            var u = spiralParticleArray[j].uvangles[0];
+                            var v = spiralParticleArray[j].uvangles[1];
 
-                            particleArray.particles[j].spiralParticle.mesh.position.set((u) * Math.cos(u), h * v, (u) * Math.sin(u));
-                    }
+                        //    u += freqAverage*10;
+
+                            spiralParticleArray[j].object.mesh.position.set((u) * Math.cos(u), r * v, (u) * Math.sin(u));
+
+                            spiralParticleArray[j].object.mesh.material.color.r = freqAverage*2;
+                            spiralParticleArray[j].object.mesh.material.color.g = freqAverage*2;
+
+                        }
 
                 } else {
-                        shootIYFParticles(particleArray);
+                        shootSpiralParticles(spiralParticleArray);
+                }
+
+            }
+
+            function checkCameraPosition() {
+                if(scope.camera.position.z < 0) {
+                    shootDirection = -1;
+                } else {
+                    shootDirection = 1;
                 }
             }
 
-            var newj = new THREE.SphereBufferGeometry();
+            function shootSpiralParticles() {
+                if(spiralParticleArray.length == 0) {
+                    return;
+                }
 
-            console.log(newj);
+                for (var j = 0; j < spiralParticleArray.length; j++) {
 
-            function animateOrbit() {
+                    var x = spiralParticleArray[j].object.mesh.position.x;
+                    var y = spiralParticleArray[j].object.mesh.position.y;
+                    var z = spiralParticleArray[j].object.mesh.position.z;
+                    var redPart = spiralParticleArray[j].object.mesh.material.color.r;
+                    if(redPart < 0.5) {
+                        spiralParticleArray[j].object.mesh.material.color.r += 0.01;
+                        spiralParticleArray[j].object.mesh.material.color.g = 0;
+                    } else {
+                        spiralParticleArray[j].object.mesh.material.color.r = 0;
+                        spiralParticleArray[j].object.mesh.material.color.g += 0.01;
+                    }
 
+
+                    spiralParticleArray[j].object.mesh.position.set(x+=freqAverage*getRandomArbitrary(-90,80), y+=freqAverage*getRandomArbitrary(-20,70), z+=freqAverage*90*shootDirection);
+                }
             }
 
+            /**
+             * Planetenobjekte
+             * @type {Array}
+             */
+
+            var orbitalSphereArray = [];
+            var orbitRadius = 25;
+
+            this.createOrbitSpheres = function() {
+
+                if(orbitalSphereArray.length < 9 && checkForPeaks(0) % 100 == 0) {
+                    var radius = getRandomArbitrary(5,15);
+                    var speed = getRandomArbitrary(0.01, 0.05);
+                    var color =  new THREE.Color(getRandomArbitrary(0,0.4), getRandomArbitrary(0,0.6), getRandomArbitrary(0.3,0.8));
+                    var orbSphere = new OrbitalSphere(radius, color, 0.5);
+                    orbitRadius += orbitRadius + getRandomArbitrary(25,80);
+                    var x=0; var y=0; var z = 0;
+                    var planet = {
+                        object: orbSphere,
+                        orbitRadius: orbitRadius,
+                        position: [x,y,z],
+                        speed: speed
+                    };
+                    if(orbitRadius > 300) {
+                        orbitRadius = 50;
+                    }
+                    scope.addMesh(planet.object, [planet.orbitRadius*Math.cos(planet.position[0]), planet.position[1], planet.orbitRadius*Math.sin(planet.position[2])-250]);
+                    orbitalSphereArray.push(planet);
+                }
+            };
+
+            function animateOrbit() {
+                if((levelZeroActive || levelOneActive || levelTwoActive) && orbitalSphereArray.length != 0) {
+                    for(var i=0; i<orbitalSphereArray.length; i++) {
+
+                        orbitalSphereArray[i].position[0] += orbitalSphereArray[i].speed;
+                        var x = orbitalSphereArray[i].position[0];
+                        var y = orbitalSphereArray[i].position[1];
+                        orbitalSphereArray[i].position[2] += orbitalSphereArray[i].speed;
+                        var z = orbitalSphereArray[i].position[2];
+
+                        orbitalSphereArray[i].object.mesh.position.set(orbitalSphereArray[i].orbitRadius*Math.cos( x ), y, orbitalSphereArray[i].orbitRadius*Math.sin( z )-250);
+                    }
+                }
+            }
+
+            function eraseOrbit() {
+                if(orbitalSphereArray.length == 0) {
+                    return;
+                }
+                if(levelThreeActive || levelFourActive) {
+                    for(var i=0; i<orbitalSphereArray.length; i++) {
+                        orbitalSphereArray[i].object.mesh.material.opacity -= 0.01;
+                    }
+                }
+                if(levelFiveActive || orbitalSphereArray[0].object.mesh.material.opacity < 0.1) {
+                    for(i=0; i<orbitalSphereArray.length; i++) {
+                        scope.scene.remove(orbitalSphereArray[i].object.mesh);
+                        orbitalSphereArray.splice(i, 1);
+                    }
+                }
+            }
+/*
             var curveArray = [];
 
             var cx1 = -20;
@@ -923,11 +989,11 @@ define(["three",
 
             this.createCurves = function() {
                 var curve = new Curve();
-                this.addBufferGeometry(curve, [0,0,1500]);
+                this.addMesh(curve, [0,0,1500]);
                 curveArray.push(curve);
             };
 
-      //      Kreis: x = 20*Math.cos(x) + factor, y+=1 z = 20*Math.cos(z) + factor
+      //      Kreis: x = 20*Math.cos(x) + factor, y+=1 z = 20*Math.sin(z) + factor
 
 
             function animateCurves() {
@@ -935,7 +1001,6 @@ define(["three",
                     return;
                 }
                     var i = 0;
-        //        for(var i=0;i<curveArray.length; i++) {
                     cx1 += 0.1;
                     cx2 += 0.1;
                     cx3 += 0.1;
@@ -950,153 +1015,147 @@ define(["three",
                         new THREE.Vector3(20,  20*Math.cos(cx2), 20*Math.cos(cy1) ),
                         new THREE.Vector3(  20,20*Math.cos(cx3), 20*Math.cos(cy1) ),
                         new THREE.Vector3(  -5 ,20*Math.cos(cx4)), 20*Math.cos(cy1));
-         //           console.log(curveArray[i].curve);
                     curveArray[i].curve.needsUpdate = true;
                     curveArray[i].geometry.verticesNeedUpdate = true;
                     curveArray[i].geometry.vertices = curveArray[i].curve.getPoints( 100 );
-
-          //      }
             }
+*/
+            /**
+             * Strahlenobjekte
+             * @type {Array}
+             */
 
-            var slowRayArray = [];
+            var skyRayArray = [];
             var fastRayArray = [];
 
-            var slowRayX = -100;
-            var slowRayY = 100;
-            var slowRayZ = -1000;
+            var skyRayX = -100;
+            var skyRayY = 200;
+            var skyRayZ = -1000;
 
-            this.createSlowRays = function() {
-                //       20*Math.cos(x) + factor, y+=1 z = 20*Math.cos(slowRayZ) + factor
-                if(slowRayArray.length < 20) {
+            this.createSkyRays = function() {
+                //       20*Math.cos(x) + factor, y+=1 z = 20*Math.cos(skyRayZ) + factor
+                if(skyRayArray.length < 20) {
                     var rayL = new Ray();
-      //              rayL.geometry.applyMatrix(new THREE.Matrix4().makeRotationX((-Math.PI/2)));
                     rayL.geometry.applyMatrix(new THREE.Matrix4().makeRotationY((-5)));
-          //          rayL.geometry.applyMatrix(new THREE.Matrix4().makeRotationY((-Math.PI*2)));
-
-                    //          this.addBufferGeometry(rayL, [10,10,10]);
-
                     var rayR = new Ray();
                     rayR.geometry.applyMatrix(new THREE.Matrix4().makeRotationY((-7)));
 
-                    var x = 20*Math.cos(slowRayX);
-                    var y = 20*Math.sin(slowRayZ);
+                    var x = 20*Math.cos(skyRayX);
+                    var y = 20*Math.sin(skyRayZ);
 
-                    this.addBufferGeometry(rayL, [x+=100,y+=100,slowRayZ+=100]);
-                    slowRayArray.push(rayL);
+                    this.addMesh(rayL, [x+=100,y+=100,skyRayZ+=100]);
+                    skyRayArray.push(rayL);
 
-                    this.addBufferGeometry(rayR, [x,y,slowRayZ]);
-                    slowRayArray.push(rayR);
+                    this.addMesh(rayR, [x,y,skyRayZ]);
+                    skyRayArray.push(rayR);
 
                 }
 
             };
+
+            var rayPos = 0;
+            var fastRays = false;
+            var skyRays = false;
+
+            function moveSkyRays() {
+                if (skyRays) {
+                    if (skyRayArray.length == 0) {
+                        return;
+                    }
+                    fastRays = false;
+                    for (var i = 0; i < skyRayArray.length; i++) {
+                        skyRayArray[i].mesh.position.x += 200*Math.cos(skyRayArray[i].mesh.position.x);
+                        skyRayArray[i].mesh.position.y += 1;
+                        skyRayArray[i].mesh.position.z += 200*Math.sin(skyRayArray[i].mesh.position.z);
+
+                        skyRayArray[i].mesh.material.opacity = freqAverage*2;
+                        skyRayArray[i].mesh.material.color.setRGB(freqAverage*2, freqAverage*2, freqAverage*4);
+                    }
+                }
+            }
 
             this.createFastRays = function() {
                 if(fastRayArray.length < 20) {
                     var ray = new Ray();
                     var fastRay = {
                         object: ray,
-                        direction: 1
+                        direction: 0
                     };
                     ray.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI));
 
-                    this.addBufferGeometry(ray, [0,100,1000]);
+                    this.addMesh(ray, [0,100,500]);
                     fastRayArray.push(fastRay);
-        //            console.log(fastRayArray + "  " + fastRayArray[0].object.mesh.position.y);
                 }
-
             };
 
-            var rayFactor = 0.1;
-            var rayPos = 0;
-            var fastRays = false;
-            var slowRays = false;
 
-            function moveRays() {
-                if (slowRays) {
-                    if (slowRayArray.length == 0) {
-                        return;
-                    }
-                    fastRays = false;
-                    for (var i = 0; i < slowRayArray.length; i++) {
-           //             slowRayArray[i].mesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(rayPos += 0.00001));
-
-                        slowRayArray[i].mesh.position.x += 200*Math.cos(slowRayArray[i].mesh.position.x + 0.00001);
-                        slowRayArray[i].mesh.position.y += 1;
-                        slowRayArray[i].mesh.position.z += 200*Math.cos(slowRayArray[i].mesh.position.z + 0.00001);
-
-               //         slowRayArray[i].mesh.position.x += slowRayArray[i].mesh.position.x + 20*Math.cos(10) + 1;
-               //         slowRayArray[i].mesh.position.y += 1;
-               //         slowRayArray[i].mesh.position.z += slowRayArray[i].mesh.position.x + 20*Math.sin(10) + 1;
-
-                    }
-                } else {
-                    for (i = 0; i < slowRayArray.length; i++) {
-           //             slowRayArray.splice(i, 1);
-                    }
-                }
-            }
-
-            function shootRays() {
+            function shootFastRays() {
                 if (fastRays == true) {
                     if (fastRayArray.length == 0) {
                         return;
                     }
-                    slowRays = false;
+                    skyRays = false;
                     for (var i = 0; i < fastRayArray.length; i++) {
 
-                        fastRayArray[i].object.mesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(rayPos += rayFactor));
+                        fastRayArray[i].object.mesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(rayPos += 0.1));
 
                         if(fastRayArray[i].direction == 1) {
-                            fastRayArray[i].object.mesh.position.set(fastRayArray[i].object.mesh.position.x, fastRayArray[i].object.mesh.position.y-=1, fastRayArray[i].object.mesh.position.z);
+                            fastRayArray[i].object.mesh.position.set(fastRayArray[i].object.mesh.position.x, fastRayArray[i].object.mesh.position.y+=1, fastRayArray[i].object.mesh.position.z);
                         }
                         if(fastRayArray[i].direction == 0) {
-                            fastRayArray[i].object.mesh.position.set(fastRayArray[i].object.mesh.position.x, fastRayArray[i].object.mesh.position.y+=1, fastRayArray[i].object.mesh.position.z);
+                            fastRayArray[i].object.mesh.position.set(fastRayArray[i].object.mesh.position.x, fastRayArray[i].object.mesh.position.y-=1, fastRayArray[i].object.mesh.position.z);
                         }
 
                         if(fastRayArray[i].object.mesh.position.y == 0) {
-                            fastRayArray[i].direction = 0;
-                        }
-                        if(fastRayArray[i].object.mesh.position.y == 100) {
                             fastRayArray[i].direction = 1;
                         }
+                        if(fastRayArray[i].object.mesh.position.y == 100) {
+                            fastRayArray[i].direction = 0;
+                        }
 
-                    }
-                } else {
-                    for (i = 0; i < slowRayArray.length; i++) {
-              //           fastRayArray.splice(i, 1);
+                        fastRayArray[i].object.mesh.material.opacity = freqAverage*1.5;
                     }
                 }
             }
 
-            function stopRayAnimation() {
-                fastRays = false;
-                slowRays = false;
-                for(var i=0;i<fastRayArray.length;i++) {
-                    scope.scene.remove(fastRayArray[i].object.mesh);
+            function stopRayAnimation(form) {
+                if(form == "fast") {
+                    fastRays = false;
+                    for(var i=0;i<fastRayArray.length;i++) {
+                        scope.scene.remove(fastRayArray[i].object.mesh);
+                    }
+                    fastRayArray = [];
                 }
-                for(i=0;i<slowRayArray.length;i++) {
-                    scope.scene.remove(slowRayArray[i].mesh);
-                }
-                fastRayArray = [];
-                slowRayArray = [];
+                if(form == "sky") {
+                    skyRays = false;
+                    for(i=0;i<skyRayArray.length;i++) {
+                        scope.scene.remove(skyRayArray[i].mesh);
+                    }
+                    skyRayArray = [];
 
-                slowRayX = -100;
-                slowRayY = 100;
-                slowRayZ = -1000;
+                    skyRayX = -100;
+                    skyRayY = 100;
+                    skyRayZ = -1000;
+                }
             }
+
+            /**
+             * Oktaeder
+             * @type {Array}
+             */
 
             var TDNoiseArray = [];
             var TDposY = 1000;
 
             this.create3DNoise = function() {
-                if(TDNoiseArray.length < 10) {
+                if(TDNoiseArray.length < 35 && checkForPeaks(2) % 3 == 0) {
                     var octahedron = new Octahedron();
+                    octahedron.mesh.material.opacity = freqAverage*1.5;
 
                     if(TDposY < -1000) {
                         TDposY = 1200;
                     }
-                    this.addBufferGeometry(octahedron, [10000, TDposY-=200, getRandomArbitrary(-10000, -1500)]);
+                    this.addMesh(octahedron, [10000, TDposY-=200, getRandomArbitrary(-10000, -1000)]);
 
                     TDNoiseArray.push(octahedron);
                 }
@@ -1114,37 +1173,10 @@ define(["three",
                 }
             }
 
-
-            function drawTimeDomain() {
-
-            }
-
-            function moveBackground() {
-
-            }
-
-            function moveFloor() {
-                var floor = scope.scene.getObjectByName("floorMesh");
-                floor.position.z += 10;
-            }
-
-
-
-            function shootIYFParticles() {
-                if(particleArray.particles.length == 0) {
-                    return;
-                }
-
-                for (var j = 0; j < particleArray.particles.length; j++) {
-
-                    var x = particleArray.particles[j].spiralParticle.mesh.position.x;
-                    var y = particleArray.particles[j].spiralParticle.mesh.position.y;
-                    var z = particleArray.particles[j].spiralParticle.mesh.position.z;
-
-                    particleArray.particles[j].spiralParticle.mesh.position.set(x+=freqAverage*getRandomArbitrary(-90,80), y+=freqAverage*getRandomArbitrary(-20,70), z+=freqAverage*90);
-                }
-
-            }
+            /**
+             * Planes
+             * @type {Array}
+             */
 
             var planeArray = [];
 
@@ -1152,153 +1184,294 @@ define(["three",
                 /**
                  * 50 planes, 25 right, 25 left
                  */
-
-                var x = -1300;
-                var y = -250;
-                var z = 0;
-                var plane = new Plane();
-                plane.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / Math.random()*10));
-                plane.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI / Math.random()*10));
-                plane.geometry.applyMatrix(new THREE.Matrix4().makeRotationZ(-Math.PI / Math.random()*10));
-
                 if(planeArray.length < 50) {
+
+                    var x = -1300;
+                    var y = -250;
+                    var z = 0;
+                    var plane = new Plane();
+                    plane.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / Math.random()*10));
+                    plane.geometry.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI / Math.random()*10));
+                    plane.geometry.applyMatrix(new THREE.Matrix4().makeRotationZ(-Math.PI / Math.random()*10));
+
                     if(planeArray.length%2 == 0) {
                         // Stellen 0,2,4 etc. beinhalten linke Planes
-                        this.addBufferGeometry(plane, [getRandomArbitrary(x,-600),getRandomArbitrary(y, 450), getRandomArbitrary(z, 700)]);
+                        this.addMesh(plane, [getRandomArbitrary(x,-600),getRandomArbitrary(y, 450), getRandomArbitrary(z, 700)]);
                     } else {
                         // Stellen 1,3,5 etc. beinhalten rechte Planes
-                        this.addBufferGeometry(plane, [getRandomArbitrary(x*(-1),600),getRandomArbitrary(y, 450), getRandomArbitrary(z, 700)]);
+                        this.addMesh(plane, [getRandomArbitrary(x*(-1),600),getRandomArbitrary(y, 450), getRandomArbitrary(z, 700)]);
                     }
+
+                    planeArray.push(plane);
+
                 }
-
-                planeArray.push(plane);
             };
 
-            /**
-             * Returns a random number between min (inclusive) and max (exclusive)
-             */
-            function getRandomArbitrary(min, max) {
-                return Math.random() * (max - min) + min;
-            }
-
-            /**
-             * converts an RGB value of 0-255 to a HEX value
-             * @param c
-             * @returns {string}
-             */
-            var componentToHex = function (c) {
-                var hex = Math.round(c).toString(16);
-                return hex.count == 1 ? "0" + hex : hex;
-            };
-
-            var rgbToHex = function(r, g, b) {
-                return "0x" + componentToHex(r) + componentToHex(g) + componentToHex(b);
-            };
 
             function animatePlanes() {
+                if(planeArray != 0) {
+                    for(var i=0; i<planeArray.length; i++) {
 
-                for(var i=0; i<planeArray.length; i++) {
+                        var color = getRandomArbitrary(70,160);
 
-                    var color = getRandomArbitrary(20,160);
+                        if(levelSixActive || levelFiveActive) {
+                            color = rgbToHex(color/3,color/2,color);
+                            planeArray[i].mesh.material.color.setHex(color);
+                        }
+                        if(levelEightActive || levelSevenActive) {
+                            color = rgbToHex(0,20,color);
+                            planeArray[i].mesh.material.color.setHex(color);
+                        }
 
-                    if(levelSixActive) {
-                        color = rgbToHex(color,color,color);
-                        planeArray[i].mesh.material.color.setHex(color);
+                        var position = freqAverage * 10 * Math.random();
+
+                        if(i%2 == 0) {
+                            // linke Planes
+                            planeArray[i].mesh.position.x += position;
+                        } else {
+                            // rechte Planes
+                            planeArray[i].mesh.position.x -= position;
+                        }
+                        planeArray[i].mesh.position.y += position;
+                        planeArray[i].mesh.position.z += position;
+
+                        var scaleFactor = freqAverage*2;
+
+                        planeArray[i].mesh.scale.set(scaleFactor,scaleFactor,scaleFactor);
+                        planeArray[i].mesh.material.opacity = freqAverage*2;
                     }
-                    if(levelEightActive) {
-                        color = rgbToHex(0,20,color);
-                        planeArray[i].mesh.material.color.setHex(color);
-                    }
-
-                    if(i%2 == 0) {
-                        // linke Planes
-                        planeArray[i].mesh.position.x += freqAverage * 10 * Math.random();
-                    } else {
-                        // rechte Planes
-                        planeArray[i].mesh.position.x -= freqAverage * 10 * Math.random();
-
-                    }
-                    planeArray[i].mesh.position.y += freqAverage * 10 * Math.random();
-                    planeArray[i].mesh.position.z += freqAverage * 10 * Math.random();
-
-                    var scaleFactor = freqAverage*2;
-
-                    planeArray[i].mesh.scale.set(scaleFactor,scaleFactor,scaleFactor);
-
-               }
-                levelSixActive = false;
-
+                }
             }
 
-            var shapeArray = [];
+            /**
+             * Connecting Points / Connecting Lines
+             * @type {Array}
+             */
 
-            this.createShapes = function() {
-                var shape = new Shape();
-                if(shapeArray.length < 15) {
-                    this.addBufferGeometry(shape, [getRandomArbitrary(-2000,2000), getRandomArbitrary(-300, 800), 1000]);
-                    shapeArray.push(shape);
+            var pointArray = [];
+            var pointCounter = 0;
+
+            this.createPoints = function() {
+                if(pointArray.length < 15) {
+
+                    var shape = new Shape();
+                    if(pointCounter == 45) {
+                        pointCounter = 0;
+                    }
+                    var connectObject = {
+                        object : shape,
+                        id: pointCounter++,
+                        direction : Math.round(getRandomArbitrary(0,3))
+                    };
+
+                    if(scope.camera.position.z < 0) {
+                        var shape2 = new Shape();
+
+                        var connectObject2 = {
+                            object : shape2,
+                            id: pointCounter++,
+                            direction : Math.round(getRandomArbitrary(0,3))
+                        };
+
+                        this.addMesh(shape, [getRandomArbitrary(-800,800), getRandomArbitrary(-350, 350), -1000]);
+                        this.addMesh(shape2, [getRandomArbitrary(-800,800), getRandomArbitrary(-350, 350), 1000]);
+                        pointArray.push(connectObject);
+                        pointArray.push(connectObject2);
+
+
+                    } else {
+                        this.addMesh(shape, [getRandomArbitrary(-800,800), getRandomArbitrary(-350, 350), 1000]);
+                        pointArray.push(connectObject);
+
+                    }
                 }
-
             };
 
-            function animateShapes() {
-                for(var i=0; i<shapeArray.length; i++) {
-                    var x = shapeArray[i].mesh.position.x;
-                    var y = shapeArray[i].mesh.position.y;
+            function animatePoints() {
+
+                if((levelFourActive || levelThreeActive)) {
+                        for(var i=0; i<pointArray.length; i++) {
+                            var shapeSpeed = getRandomArbitrary(1,4) * freqAverage;
+                            if(pointArray[i].direction == 0) {
+                                pointArray[i].object.mesh.position.x -= shapeSpeed;
+                                pointArray[i].object.mesh.position.y -= shapeSpeed;
+                            } else if(pointArray[i].direction == 1) {
+                                pointArray[i].object.mesh.position.x += shapeSpeed;
+                                pointArray[i].object.mesh.position.y += shapeSpeed;
+                            } else if(pointArray[i].direction == 2) {
+                                pointArray[i].object.mesh.position.x -= shapeSpeed;
+                                pointArray[i].object.mesh.position.y += shapeSpeed;
+                            } else if(pointArray[i].direction == 3) {
+                                pointArray[i].object.mesh.position.x += shapeSpeed;
+                                pointArray[i].object.mesh.position.y -= shapeSpeed;
+                            }
+                            if(pointArray[i].object.mesh.position.x >1150 || pointArray[i].object.mesh.position.x < -1150 || pointArray[i].object.mesh.position.y < -550 || pointArray[i].object.mesh.position.y > 550 ) {
+                                scope.scene.remove(pointArray[i].object.mesh);
+                                pointArray.splice(i,1);
+                            }
+                        }
+                        calculatePointPosition();
+                } else {
+                    for(i=0;i<pointArray.length;i++) {
+                        scope.scene.remove(pointArray[i].object.mesh);
+                        pointArray.splice(i,1);
+                    }
+
+                    for(i=0;i<connectingLinesArray.length;i++) {
+                        scope.scene.remove(connectingLinesArray[i].object.line);
+                        connectingLinesArray.splice(i,1);
+                    }
                 }
             }
 
-            function calculateShapePosition() {
-                for(var i=0; i<shapeArray.length; i++) {
-                    var x = shapeArray[i].mesh.position.x;
-                    var y = shapeArray[i].mesh.position.y;
+            function calculatePointPosition() {
+                for(var i=0; i<pointArray.length; i++) {
 
-                    for(var j=0; j<shapeArray.length; i++) {
-                        if((shapeArray[j].mesh.position.x - x) < 100) {
-                            shapeArray[j].mesh.position.x += 5;
-                        }
-                        if((shapeArray[j].mesh.position.y - y) < 100) {
-                            shapeArray[j].mesh.position.y += 5;
+                    for(var j=0;j<pointArray.length; j++) {
+                        var xDiff;
+                        var yDiff;
+                        var point1; // von dem wir aus zeichnen
+                        var point2; // zu dem wir hin zeichnen
+
+                        if(pointArray[i].object.mesh.position.z == pointArray[j].object.mesh.position.z) {
+
+                            if (pointArray[i].object.mesh.position.x > pointArray[j].object.mesh.position.x) {
+                                xDiff = Math.round(pointArray[i].object.mesh.position.x - pointArray[j].object.mesh.position.x);
+                                point1 = pointArray[j];
+                                point2 = pointArray[i];
+                            } else {
+                                xDiff = Math.round(pointArray[j].object.mesh.position.x - pointArray[i].object.mesh.position.x);
+                                point1 = pointArray[i];
+                                point2 = pointArray[j];
+                            }
+
+                            yDiff = Math.round(point2.object.mesh.position.y - point1.object.mesh.position.y);
+
+                            if ((xDiff > 5 && xDiff <= 200 && Math.abs(yDiff) <= 200)
+                                && pointArray[j].object.geometry.uuid != pointArray[i].object.geometry.uuid /* && pointArray[j].connected == false && pointArray[i].connected == false */) {
+                                var color = freqAverage * Math.random();
+                                pointArray[i].object.mesh.material.color.setRGB(color * 2, color * 2, color * 8);
+                                pointArray[j].object.mesh.material.color.setRGB(color * 2, color * 2, color * 8);
+
+                                connectPoints(point1, point2, xDiff, yDiff);
+                            } else {
+                                disconnectPoints(point1, point2);
+                            }
+
                         }
                     }
                 }
             }
 
-            function connectParticles() {
+            var connectingLinesArray = [];
+
+            function connectPoints(point1, point2, xDiff, yDiff) {
+                if(connectingLinesArray.length != 0) {
+                    for(var i=0; i<connectingLinesArray.length; i++) {
+                        var color = freqAverage*Math.random();
+                        connectingLinesArray[i].object.mesh.material.color.setRGB( color*4, color*4, color*8 );
+
+                        if(connectingLinesArray[i].id == (point1.id +""+point2.id)) {
+                            scope.scene.remove(connectingLinesArray[i].object.line);
+                            connectingLinesArray.splice(i,1);
+                        }
+
+                    }
+                }
+
+                point1.object.mesh.material.color.setHex(0xffffff);
+                point2.object.mesh.material.color.setHex(0xffffff);
+
+                color = freqAverage*getRandomArbitrary(0.5,1);
+                point1.object.mesh.material.color.setRGB( color*4, color*4, color*8 );
+                point2.object.mesh.material.color.setRGB( color*4, color*4, color*8 );
+
+                var connectingLine = new Connectingline(xDiff, yDiff);
+                var clObject = {
+                    object: connectingLine,
+                    id: point1.id + "" + point2.id
+                };
+
+                connectingLine.mesh.material.color.setRGB( color*4, color*4, color*8 );
+
+                connectingLinesArray.push(clObject);
+
+                scope.addMesh(connectingLine, [point1.object.mesh.position.x, point1.object.mesh.position.y, point1.object.mesh.position.z]);
 
             }
 
 
-            function disconnectParticles() {
-
+            function disconnectPoints(particle1, particle2) {
+                for(var i=0; i<connectingLinesArray.length;i++) {
+                    if(connectingLinesArray[i].id == particle1.id + "" + particle2.id) {
+                        scope.scene.remove(connectingLinesArray[i].object.line);
+                        connectingLinesArray.splice(i,1);
+                    }
+                }
             }
 
-            function makeGlow() {
+            /**
+             * Sternenhimmel
+             */
 
-            }
+            var starArray = [];
 
-            function createBackground() {
-
-            }
+            this.createBackground = function() {
+                if(checkForPeaks(0) % 100 == 0 && starArray.length < 2000) {
+                    var radius = getRandomArbitrary(20,50);
+                    var icosahedron = new Star(radius);
+                    var star = {
+                        object: icosahedron,
+                        glow: true
+                    };
+                    scope.addMesh(star.object, [getRandomArbitrary(-40000,40000), getRandomArbitrary(0,15000), -20000]);
+                    starArray.push(star);
+                }
+            };
 
             function animateBackground() {
+                if(levelZeroActive || levelOneActive || levelTwoActive) {
+                    for(var i=0; i<starArray.length; i++) {
+                        if(starArray[i].glow == false) {
+                            starArray[i].object.mesh.material.opacity -= 0.01
+                        } else {
+                            starArray[i].object.mesh.material.opacity += 0.01
+                        }
+                        if(starArray[i].object.mesh.material.opacity < 0.01) {
+                            starArray[i].glow = true
+                        }
+                        if(starArray[i].object.mesh.material.opacity > 0.5) {
+                            starArray[i].glow = false
+                        }
+                    }
+                } else {
+                    for(i=0;i<starArray.length; i++) {
+                        scope.scene.remove(starArray[i].object.mesh);
+                        starArray.splice(i,1);
+                    }
+                }
 
             }
+
+            /**
+             * langsame Partikel
+             * @type {Array}
+             */
 
             var backgroundNoiseArray = [];
 
-            this.createBackgroundNoise = function() {
+            this.createBackgroundParticles = function() {
                 var backPart = new backgroundParticle();
-                continousParticle.mesh.material.color.setHex(0x00ff00);
+                backPart.mesh.material.color.setHex(0x00ff00);
 
                 if(backgroundNoiseArray.length<500) {
-                    scope.addBufferGeometry(backPart, [getRandomArbitrary(-1000,1000), getRandomArbitrary(-300,300), getRandomArbitrary(-1000, -2000)]);
+                    scope.addMesh(backPart, [getRandomArbitrary(-1000,1000), getRandomArbitrary(-300,300), getRandomArbitrary(-1000, -2000)]);
                     backgroundNoiseArray.push(backPart);
                 }
             };
 
 
-            function animateBackgroundNoise() {
+            function animateBackgroundParticles() {
                 if(backgroundNoiseArray.length == 0) {
                     return;
                 }
@@ -1309,19 +1482,29 @@ define(["three",
                     backgroundNoiseArray[i].mesh.position.z += getRandomArbitrary(-5,5);
                 }
 
-                /*
-                var lorenzPositions = lorenzAttractor();
 
-                for(var i=0; i<backgroundNoiseArray.length; i++) {
-                    backgroundNoiseArray[i].mesh.position.x += lorenzPositions[0]*10;
-                    backgroundNoiseArray[i].mesh.position.y += lorenzPositions[1]*10;
-                    backgroundNoiseArray[i].mesh.position.z += lorenzPositions[2]*10;
+                if(levelTwoActive) {
+                    for (var j = 0; j < backgroundNoiseArray.length/3; j++) {
+
+                        var x = backgroundNoiseArray[j].mesh.position.x;
+                        var y = backgroundNoiseArray[j].mesh.position.y;
+                        var z = backgroundNoiseArray[j].mesh.position.z;
+
+                        backgroundNoiseArray[j].mesh.position.set(x += freqAverage * getRandomArbitrary(-1, 1), y += freqAverage * getRandomArbitrary(-5, 5), z += freqAverage * 500 * shootDirection);
+                    }
                 }
-                */
+
                 if(levelSixActive) {
                     shootBackgroundNoise();
-
                 }
+
+                if(levelSevenActive) {
+                    for(i=0; i<backgroundNoiseArray.length; i++) {
+                        scope.scene.remove(backgroundNoiseArray[i].mesh);
+                        backgroundNoiseArray.splice(i,1);
+                    }
+                }
+
             }
 
             function shootBackgroundNoise() {
@@ -1335,99 +1518,353 @@ define(["three",
                     var y = backgroundNoiseArray[j].mesh.position.y;
                     var z = backgroundNoiseArray[j].mesh.position.z;
 
-                    backgroundNoiseArray[j].mesh.position.set(x+=freqAverage*getRandomArbitrary(-1,1), y+=freqAverage*getRandomArbitrary(-5,5), z+=freqAverage*500);
+                    backgroundNoiseArray[j].mesh.position.set(x+=freqAverage*getRandomArbitrary(-1,1), y+=freqAverage*getRandomArbitrary(-3,3), z+=freqAverage*500*shootDirection);
                 }
 
             }
 
-            var xLor = 0.1;
-            var yLor = 0;
-            var zLor = 0;
-            var a = 10.0;
-            var b = 28.0;
-            var c = 8.0 / 3.0;
-            var tLor = 0.01;
-            var lorenzIterationCount = 10000;
-            var iLor;
-            function lorenzAttractor() {
+            /**
+             * Stroboskop
+             * @type {boolean}
+             */
 
-                //Iterate and update x,y and z locations
-                //based upon the Lorenz equations
+            var stroboActive = false;
+            scope.addMesh(new FrontalPlane(), [0,0,3005]);
+            var frontalPlane = scope.scene.getObjectByName("frontalPlaneMesh");
 
-                if (iLor < lorenzIterationCount) {
-                    var xt = xLor + tLor * a * (yLor - xLor);
-                    var yt = yLor + tLor * (xLor * (b - zLor) - yLor);
-                    var zt = zLor + tLor * (xLor * yLor - c * zLor);
-
-                    xLor = xt;
-                    yLor = yt;
-                    zLor = zt;
-                    iLor++
+            function flickerLight() {
+                if(stroboActive) {
+                    frontalPlane.position.z = 1500;
+                    frontalPlane.material.opacity = 0.8;
+                    frontalPlane.rotation.x += 3000 * freqAverage;
+                } else {
+                    frontalPlane.material.opacity = 0.0;
+                    frontalPlane.position.z = 3005;
                 }
-                return [xLor,yLor,zLor]
             }
+
+            /**
+             * Vordergrundsstrahlen
+             */
+
+            var frontalRayArray = [];
+            var frontalRayXRight = getRandomArbitrary(600,800);
+            var frontalRayXLeft = frontalRayXRight*(-1);
+            var frontalRayZ = 2500;
+            var rotationDirection = 1;
+
+            function createFrontalRays() {
+                if(frontalRayArray.length < 6) {
+                    var frontalRay1 = new FrontRay();
+                    frontalRay1.geometry.applyMatrix(new THREE.Matrix4().makeRotationZ(Math.PI / 2 -10));
+                    scope.addMesh(frontalRay1, [frontalRayXRight-= frontalRayXRight /2.5, 0, frontalRayZ-= frontalRayZ/3]);
+
+                    frontalRayArray.push(frontalRay1);
+
+                    var frontalRay2 = new FrontRay();
+                    frontalRay2.geometry.applyMatrix(new THREE.Matrix4().makeRotationZ(-Math.PI / 2 + 10));
+                    scope.addMesh(frontalRay2, [frontalRayXLeft-=frontalRayXLeft/2.5, 0, frontalRayZ]);
+
+                    frontalRayArray.push(frontalRay2);
+
+                }
+            }
+
+            function animateFrontalRays() {
+                if(levelSevenActive && frontalRayArray.length != 0 && checkForPeaks(7, 500) > 30) {
+                    var color = freqAverage*Math.random();
+
+                    var RGcolor = getRandomArbitrary(2,4);
+                    for(var i=0;i<frontalRayArray.length;i++) {
+                        frontalRayArray[i].mesh.material.color.setRGB( color*RGcolor, color*RGcolor, color*8 );
+                        frontalRayArray[i].mesh.material.opacity = freqAverage*1.5;
+                        frontalRayArray[i].mesh.rotation.z += 0.1 * rotationDirection;
+
+                        if(i+1 != frontalRayArray.length) {
+                            frontalRayArray[i+=1].mesh.rotation.z -= 0.1 * rotationDirection;
+                            frontalRayArray[i].mesh.material.color.setRGB( color*RGcolor, color*RGcolor, color*7 );
+                            frontalRayArray[i].mesh.material.opacity = freqAverage*1.5;
+
+                        }
+                    }
+                } else if(!levelSevenActive) {
+                    for(i=0;i<frontalRayArray.length;i++) {
+                        scope.scene.remove(frontalRayArray[i].mesh);
+                        frontalRayArray.splice(i,1);
+                        frontalRayXRight = 400;
+                        frontalRayXLeft = -400;
+                        frontalRayZ = 2500;
+                    }
+
+                }
+            }
+
+            /**
+             * schnelle Partikel
+             * @type {Array}
+             */
+
+            var continousParticlesArray = [];
+
+            var shootContinousParticles = false;
+
+            function createAndShootContinousParticles() {
+                if (continousParticlesArray.length < 300 && shootContinousParticles && checkForPeaks(8) > 40) {
+                    while (continousParticlesArray .length < 100) {
+                        var continousParticle = new backgroundParticle();
+                        if(checkForPeaks(8, 500) > 100) {
+                            continousParticle.mesh.material.color.setHex(0xffffff);
+                        } else {
+                            continousParticle.mesh.material.color.setHex(0xffff99);
+                        }
+
+                        scope.addMesh(continousParticle, [getRandomArbitrary(-1000, 1000), getRandomArbitrary(-300, 300), getRandomArbitrary(-1000, -2000)]);
+                        continousParticlesArray.push(continousParticle);
+                    }
+                }
+
+
+                if(levelEightActive || levelSevenActive) {
+                    for (var j = 0; j < continousParticlesArray.length; j++) {
+
+                        var x = continousParticlesArray[j].mesh.position.x;
+                        var y = continousParticlesArray[j].mesh.position.y;
+                        var z = continousParticlesArray[j].mesh.position.z;
+
+                        continousParticlesArray[j].mesh.position.set(x += freqAverage * getRandomArbitrary(-1, 1), y += freqAverage * getRandomArbitrary(-5, 5), z += freqAverage * 800);
+                    }
+                }
+
+                if(levelSixActive) {
+                    for(var i=0; i<continousParticlesArray.length; i++) {
+                        scope.scene.remove(continousParticlesArray[i].mesh);
+                        continousParticlesArray.splice(i,1);
+                    }
+                }
+            }
+
+            /**
+             * Parametrische Fläche
+             *
+             */
+
+            var parametricArray = [];
+
+            function createParametric() {
+                if(checkForPeaks(5)%20 == 0) {
+                    if(parametricArray < 8) {
+                        addParametric([getRandomArbitrary(-2000,-1000), getRandomArbitrary(-200, 200), getRandomArbitrary(-1000, -500)]);
+                        addParametric([getRandomArbitrary(1000,2000), getRandomArbitrary(-200, 200), getRandomArbitrary(-1000, -500)]);
+                    }
+                }
+            }
+
+            function animateParametric() {
+                if(parametricArray.length == 0) {
+                    return;
+                }
+                for(var i=0;i<parametricArray.length;i++) {
+                    parametricArray[i].mesh.scale.x += freqAverage * 0.1;
+                    parametricArray[i].mesh.scale.y += freqAverage * 0.1;
+                    parametricArray[i].mesh.scale.z += freqAverage * 0.1;
+
+                    parametricArray[i].mesh.rotation.x += 0.1 * freqAverage;
+                    parametricArray[i].mesh.rotation.y += 0.1 * freqAverage;
+                    parametricArray[i].mesh.position.y += 0.1 * freqAverage;
+
+                    var color = freqAverage*Math.random();
+                    parametricArray[i].mesh.material.color.setRGB( color*3, color*3, color*8 );
+
+                    if(parametricArray[i].mesh.material.opacity > 0.01) {
+                        parametricArray[i].mesh.material.opacity -= 0.01;
+                    } else {
+                        scope.scene.remove(parametricArray[i].mesh);
+                        parametricArray.splice(i,1);
+                    }
+                }
+
+            }
+
+            function addParametric(position) {
+                var config = {
+                    segments : 50,
+                    umin : -8,
+                    umax : 8,
+                    vmin : -8,
+                    vmax : 8
+                };
+
+                var a = 7;
+
+                var posFunc = function(u0,v0) {
+                    var u = config.umax * u0 + config.umin;
+                    var v = config.vmax * v0 + config.vmin;
+                    var x = Math.sinh(v) * Math.cos(a * u)/(1+Math.cosh(u) * Math.cosh(v));
+                    var y = Math.sinh(v) * Math.sin(a * u)/(1+Math.cosh(u) * Math.cosh(v));
+                    var z = Math.cosh(v) * Math.sinh(u)/(1+Math.cosh(u) * Math.cosh(v));
+
+                    return new THREE.Vector3(x*30, y*30, z*30); // [x*300,y*300,z*300];
+                };
+
+                var obj = new TParametric(posFunc, 50);
+                parametricArray.push(obj);
+                scope.addMesh(obj, position);
+            }
+
+            /**
+             * CircleWaves
+             * @type {Array}
+             */
+
+            var circleWaveArray = [];
+
+            var circleX = 899;
+            var circleY = 399;
+
+            this.createCircleWaves = function() {
+                var positionFactor = getRandomArbitrary(0.5,1.5);
+
+                circleX = circleX*positionFactor;
+                circleY = circleX*positionFactor;
+
+                if(circleWaveArray.length < 8) {
+                    var circleWave = new CircleWave();
+                    if(circleY < 400) {
+                        circleY -= 100*positionFactor;
+                    }
+                    if(circleY < 0) {
+                        circleY = 399;
+                    }
+                    if(circleX < -700) {
+                        circleX = 899;
+                    }
+
+                    if(circleWaveArray.length == 0) {
+                        scope.addMesh(circleWave, [circleX-=200,circleY,getRandomArbitrary(0,500)]);
+                    } else {
+                        scope.addMesh(circleWave, [circleX-=200,circleY,circleWaveArray[0].object.mesh.position.z]);
+                    }
+
+                    var circleWaveObject = {
+                        object: circleWave,
+                        checkCircleHeights: true,
+                        changeCircleHeights: false
+                    };
+
+                    circleWaveArray.push(circleWaveObject);
+                }
+
+            };
+
+            var circleT = 0;
+
+            function animateCircleWaves() {
+                if(circleWaveArray.length == 0) {
+                    return;
+                }
+
+                    for(var i= 0, j=0; j<circleWaveArray.length; i++,j++) {
+                        if(circleWaveArray[j].object != undefined) {
+                            visualize(circleWaveArray[j].object.mesh);
+
+                            if(levelNineActive) {
+                                circleWaveArray[j].object.mesh.scale.set(freqAverage*4, freqAverage*4, freqAverage*4);
+                            }
+                        }
+
+                        if(circleWaveArray[i+1] != undefined) {
+                            if(circleWaveArray[i+1].object != undefined) {
+
+                                if (circleWaveArray[i].checkCircleHeights) {
+                                    if (circleWaveArray[i].object.mesh.position.y > circleWaveArray[i + 1].object.mesh.position.y) {
+                                        circleWaveArray[i + 1].object.mesh.position.y += 2;
+                                        circleWaveArray[i].object.mesh.position.y -= 2;
+                                    } else {
+                                        circleWaveArray[i + 1].object.mesh.position.y -= 2;
+                                        circleWaveArray[i].object.mesh.position.y += 2;
+                                    }
+                                }
+
+                                if (circleWaveArray[i].object.mesh.position.y == circleWaveArray[i + 1].object.mesh.position.y) {
+                                    circleWaveArray[i].changeCircleHeights = true;
+                                    circleWaveArray[i+1].changeCircleHeights = true;
+
+                                    circleWaveArray[i].checkCircleHeights = false;
+                                    circleWaveArray[i+1].checkCircleHeights = false;
+                                }
+
+                                if (circleWaveArray[i].changeCircleHeights) {
+                                    circleWaveArray[i].object.mesh.rotation.y += 0.02;
+                                    circleWaveArray[i + 1].object.mesh.rotation.y -= 0.02;
+
+                                    circleWaveArray[i].object.mesh.position.y +=2;
+                                    circleWaveArray[i + 1].object.mesh.position.y -=2;
+
+                                    circleT += 0.01;
+
+                                    circleWaveArray[i].object.mesh.position.x += 10*freqAverage*Math.cos(circleT);
+                                    circleWaveArray[i].object.mesh.position.y += 10*freqAverage*Math.sin(circleT);
+
+                                    circleWaveArray[i+1].object.mesh.position.x -= 10*freqAverage*Math.cos(circleT);
+                                    circleWaveArray[i+1].object.mesh.position.y -= 10*freqAverage*Math.sin(circleT);
+
+                                }
+                                i++;
+                            }
+                        }
+                    }
+            }
+
+            function deleteCircleWaves() {
+                if(circleWaveArray.length == 0) {
+                    return;
+                }
+
+                for(var i=0; i<circleWaveArray.length; i++) {
+                    var circleWave = circleWaveArray[i].object.mesh;
+                    circleWaveArray.splice(i,1);
+                    scope.scene.remove(circleWave);
+                }
+
+                circleT = 0;
+                levelNineActive = false;
+            }
+
+            /**
+             * Kameraanimation
+             * Fahre Kamera nach vorne und dreh sie dann um
+             */
 
             function animateCamera() {
 
+                if(scope.animateCamera) {
                     if(levelThreeActive) {
+                        levelFourActive = false;
                         rotateCameraZ();
                     }
 
                     if(levelFourActive) {
-                        levelSevenActive = false;
 
                         if (scope.camera.position.x < 500) {
-                            scope.camera.position.x += 0.1;
-                        } else {
-                            levelFourActive = false;
+                      //                 scope.camera.position.x += rotationDirection*(0.05)*freqAverage;
                         }
-
-            //            console.log(scope.camera.position.x);
                     }
                     if(levelFiveActive) {
-                        levelFourActive = false;
 
                         if (scope.camera.position.z > 1000) {
-                            scope.camera.position.z -= 0.9;
-                        } else {
-                            levelFiveActive = false;
+                            scope.camera.position.z -= rotationDirection*(0.9)*freqAverage;
                         }
-            //            console.log(scope.camera.position.z);
-
-/*
-                        if (scope.camera.position.x > -500) {
-                            scope.camera.position.x -= 0.2;
-                        } else {
-                            levelSixActive = false;
-                        }
-                      console.log(scope.camera.position.x);
-          */        }
-                    if(levelSixActive) {
-                        levelThreeActive = false;
-
-                        if (scope.camera.position.y < 500) {
-                            scope.camera.position.y += 2;
-                        } else {
-                            levelSixActive = false;
-                        }
-            //            console.log(scope.camera.position.y);
                     }
-                    if(levelSevenActive) {
-                        levelFiveActive = false;
+                    if(levelSixActive) {
 
                         if (scope.camera.position.z < 2000) {
-                            scope.camera.position.z += 0.9
-                        } else {
-                            levelSevenActive = false;
+                            scope.camera.position.z += rotationDirection*(0.9)*freqAverage;
                         }
-            //            console.log(scope.camera.position.z);
-
+                    }
+                    if(levelSevenActive) {
                         if (scope.camera.position.y > 0) {
                             scope.camera.position.y -= 2;
-                        } else {
-                        //    levelEightActive = false;
                         }
-            //            console.log(scope.camera.position.y);
                     }
                     if(levelEightActive) {
 
@@ -1445,11 +1882,19 @@ define(["three",
                             scope.camera.position.y -=5;
                         }
                         if(z < 2000) {
-                            scope.camera.position.z +=5;
+                            scope.camera.position.z +=8*freqAverage;
                         }
                     }
 
-                scope.camera.lookAt(new THREE.Vector3(0,0,0));
+
+                    if(levelSixActive && levelFiveActive && scope.camera.position.z < 1000) {
+                        scope.camera.position.z -= 2*freqAverage;
+                    }
+
+
+                    scope.camera.lookAt(new THREE.Vector3(0,0,0));
+                }
+
 
             }
 
@@ -1475,390 +1920,43 @@ define(["three",
                 }
             }
 
-            function moveLight() {
-
-            }
-
-            scope.addBufferGeometry(new FrontalPlane(), [0,0,1999]);
-            var stroboActive = false;
-
-            var frontalPlane = scope.scene.getObjectByName("frontalPlaneMesh");
-
-            function flickerLight() {
-                if(stroboActive) {
-                    frontalPlane.material.opacity = 0.9;
-                    frontalPlane.rotation.x += 1000;
-                } else {
-                    frontalPlane.material.opacity = 0.0;
-                }
-            }
-
-            var frontalRayArray = [];
-            var frontalRayXRight = 400;
-            var frontalRayXLeft = -400;
-            var frontalRayZ = 2500;
-
-            function createFrontalRays() {
-                if(frontalRayArray.length < 8) {
-                    var frontalRay1 = new FrontRay();
-                    console.log(frontalRay1);
-                    frontalRay1.geometry.applyMatrix(new THREE.Matrix4().makeRotationZ(Math.PI / 2 -10));
-                    scope.addBufferGeometry(frontalRay1, [frontalRayXRight-= frontalRayXRight /1.5, 0, frontalRayZ-= frontalRayZ/3]);
-
-                    frontalRayArray.push(frontalRay1);
-
-                    var frontalRay2 = new FrontRay();
-            //        frontalRay2.geometry.mesh.material.color = 0xffff00;
-                    frontalRay2.geometry.applyMatrix(new THREE.Matrix4().makeRotationZ(-Math.PI / 2 + 10));
-                    scope.addBufferGeometry(frontalRay2, [frontalRayXLeft-=frontalRayXLeft/1.5, 0, frontalRayZ]);
-
-                    frontalRayArray.push(frontalRay2);
-
-                }
-            }
-
-            function animateFrontalRays() {
-                if(levelSevenActive && frontalRayArray.length != 0) {
-                    for(var i=0;i<frontalRayArray.length;i++) {
-                        frontalRayArray[i].mesh.rotation.z += 0.1;
-                        if(i+1 != frontalRayArray.length) {
-                            frontalRayArray[i+=1].mesh.rotation.z -= 0.1;
-                        }
-                    }
-                } else {
-                    for(i=0;i<frontalRayArray.length;i++) {
-                        scope.scene.remove(frontalRayArray[i].mesh);
-                        frontalRayArray.splice(i,1);
-                        frontalRayXRight = 400;
-                        frontalRayXLeft = -400;
-                        frontalRayZ = 2500;
-                    }
-
-                }
-            }
-
-
-            var shootContinousParticles = false;
-            var continousParticle = new backgroundParticle();
-            console.log(continousParticle);
-
-            function createContinousParticles() {
-                if (backgroundNoiseArray.length < 300 && shootContinousParticles && checkforPeaks(8) > 15) {
-                    while (backgroundNoiseArray.length < 300) {
-                        var continousParticle = new backgroundParticle();
-                        if(checkforPeaks(8) > 20) {
-                            continousParticle.mesh.material.color.setHex(0xffffff);
-                        } else {
-                            continousParticle.mesh.material.color.setHex(0xffff99);
-                        }
-
-                        scope.addBufferGeometry(continousParticle, [getRandomArbitrary(-1000, 1000), getRandomArbitrary(-300, 300), getRandomArbitrary(-1000, -2000)]);
-                        backgroundNoiseArray.push(continousParticle);
-                    }
-                } else {
-                    for(var i=0; i<backgroundNoiseArray.length; i++) {
-                        scope.scene.remove(backgroundNoiseArray[i].mesh);
-                        backgroundNoiseArray.split(i,1);
-                    }
-                }
-
-                for (var j = 0; j < backgroundNoiseArray.length; j++) {
-
-                    var x = backgroundNoiseArray[j].mesh.position.x;
-                    var y = backgroundNoiseArray[j].mesh.position.y;
-                    var z = backgroundNoiseArray[j].mesh.position.z;
-
-                    backgroundNoiseArray[j].mesh.position.set(x += freqAverage * getRandomArbitrary(-1, 1), y += freqAverage * getRandomArbitrary(-5, 5), z += freqAverage * 500);
-                }
-            }
-
-            function continousParticleShoot() {
-
-            }
-
-            var particleStreamArray = [];
-
-            function particleStreamWave() {
-
-            }
-
-            function animateMandelbrot() {
-
-            }
-
-            var circleWaveArray = [];
-
-            var circleX = 899;
-            var circleY = 399;
-
-            this.createCircleWaves = function() {
-                if(circleWaveArray.length < 8) {
-                    var circleWave = new CircleWave();
-                    if(circleY < 400) {
-                        circleY -= 100;
-                    }
-                    if(circleY < 0) {
-                        circleY = 399;
-                    }
-                    if(circleX < -700) {
-                        circleX = 899;
-                    }
-                    scope.addBufferGeometry(circleWave, [circleX-=200,circleY,0]);
-
-                    var circleWaveObject = {
-                        circleWave: circleWave,
-                        checkCircleHeights: true,
-                        changeCircleHeights: false
-                    };
-
-                    circleWaveArray.push(circleWaveObject);
-                }
-
-            };
-
-            var circleT = 0;
-
-            function animateCircleWaves() {
-                if(circleWaveArray.length == 0) {
-                    return;
-                }
-
-                    for(var i= 0, j=0; j<circleWaveArray.length; i++,j++) {
-                        if(circleWaveArray[j].circleWave != undefined) {
-                            visualize(circleWaveArray[j].circleWave.mesh);
-
-                            if(levelNineActive) {
-                                circleWaveArray[j].circleWave.mesh.scale.set(freqAverage*3, freqAverage*3, freqAverage*3);
-                            }
-                        }
-
-                        if(circleWaveArray[i+1] != undefined) {
-                            if(circleWaveArray[i+1].circleWave != undefined) {
-
-                                if (circleWaveArray[i].checkCircleHeights) {
-                                    if (circleWaveArray[i].circleWave.mesh.position.y > circleWaveArray[i + 1].circleWave.mesh.position.y) {
-                                        circleWaveArray[i + 1].circleWave.mesh.position.y += 2;
-                                        circleWaveArray[i].circleWave.mesh.position.y -= 2;
-                                    } else {
-                                        circleWaveArray[i + 1].circleWave.mesh.position.y -= 2;
-                                        circleWaveArray[i].circleWave.mesh.position.y += 2;
-                                    }
-                                }
-
-
-                                if (circleWaveArray[i].circleWave.mesh.position.y == circleWaveArray[i + 1].circleWave.mesh.position.y) {
-                                    circleWaveArray[i].changeCircleHeights = true;
-                                    circleWaveArray[i+1].changeCircleHeights = true;
-
-                                    circleWaveArray[i+1].checkCircleHeights = false;
-                                    circleWaveArray[i].checkCircleHeights = false;
-                                }
-
-                                if (circleWaveArray[i].changeCircleHeights) {
-                                    circleWaveArray[i].circleWave.mesh.rotation.y += 0.02;
-                                    circleWaveArray[i + 1].circleWave.mesh.rotation.y -= 0.02;
-
-                                    circleWaveArray[i].circleWave.mesh.position.y +=2;
-                                    circleWaveArray[i + 1].circleWave.mesh.position.y -=2;
-
-                                    circleT += 0.01;
-
-                                    circleWaveArray[i].circleWave.mesh.position.x += 10*freqAverage*Math.cos(circleT);
-                                    circleWaveArray[i].circleWave.mesh.position.y += 10*freqAverage*Math.sin(circleT);
-
-                                    circleWaveArray[i+1].circleWave.mesh.position.x -= 10*freqAverage*Math.cos(circleT);
-                                    circleWaveArray[i+1].circleWave.mesh.position.y -= 10*freqAverage*Math.sin(circleT);
-
-                                }
-
-                                i++;
-
-                            }
-                        }
-                    }
-            }
-
-            function deleteCircleWaves() {
-                if(circleWaveArray.length == 0) {
-                    return;
-                }
-
-                console.log(circleWaveArray.length);
-
-                for(var i=0; i<circleWaveArray.length; i++) {
-                    var circleWave = circleWaveArray[i].circleWave.mesh;
-                    circleWaveArray.splice(i,1);
-                    scope.scene.remove(circleWave);
-                }
-
-                circleT = 0;
-                levelNineActive = false;
-            }
-
-
- //           createTrianguloid();
-
-            function createTrianguloid() {
-                var config = {
-                    segments : 50,
-                    umin : 0,
-                    umax : 2*Math.PI,
-                    vmin : -Math.PI/2,
-                    vmax : Math.PI/2
-                };
-
-                var posFunc = function(u,v) {
-
-                    var x = Math.cos(u) * Math.sin(2 * v);
-                    var y = Math.sin(u) * Math.sin(2 * v);
-                    var z = Math.sin(v);
-
-
-                    return [x*300,y*300,z*300];
-                };
-
-                newBufferGeo(posFunc,config);
-            }
-
-            function newBufferGeo(posFunc, config) {
-                var rgb = {
-                    red : 1,
-                    blue : 1,
-                    green : 1
-                };
-
-                var param = new Parametric(posFunc, config, rgb);
-                var bufferGeometryParam = new BufferGeometry();
-                bufferGeometryParam.addAttribute("position", param.getPositions());
-                bufferGeometryParam.addAttribute("color", param.getColors());
-
-                bufferGeometryParam.setIndex(param.getIndices());
-                bufferGeometryParam.setSegments(param.getSegments());
-
-                currentMainObject.push(bufferGeometryParam);
-                scope.addBufferGeometry(bufferGeometryParam, [0,0,-500]);
-            }
-
-
             /**
-             * MODES(nice to have)
+             * Automatisierter Objekt Garbage Collector
              */
 
-
-            function bounceSpheres() {
-
-            }
-
-            function createKaleidoscope() {
-
-            }
-
-            function animateKaleidoscope() {
-
-            }
-
-            function flowerOfLife() {
-
-            }
-
-
-            function harmonograph() {
-
-            }
-
-            function knickBackground() {
-
-            }
-
-
-            function createLineNoise() {
-
-            }
-
-            function spirograph() {
-
-            }
-
-            function lissajous() {
-
-            }
-
-            function morphObject() {
-
-            }
-
-            function eulerFluid() {
-
-            }
-
-            function explode() {
-
-            }
-
-
-            function createFloor() {
-                var floor = new THREE.PlaneGeometry(20000, 20000, 50, 50);
-                floor.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-                var material = new THREE.MeshBasicMaterial({color: new THREE.Color(0.22 * 3, 0.22 * 6, 0.22 * 3)});   //({color: 0x551A8B});
-                return new THREE.Mesh(floor, material);
-            }
-
-            // http://mrdoob.com/projects/voxels/#A/ahhadcajiaeeUhWffUhYhcfhSfWhhSfUhYhcfhYhWdhWkfUhUhUhUhUhUhUhUhUhUhUhUhSfWhhSfUhUhUhUhUhUhUhUhUhUhUhWbf
-
-            function showChildren() {
-                for(var i = 0;i<scope.scene.children.length;i++) {
-                    console.log(scope.scene.children[i]);
-                }
-            }
-
-
-            // children sind bereits Meshes
-
-            this.removeMainObject = function() {
-
-                for(var i=0;i<currentMainObject.length;i++) {
-                        scope.scene.remove(currentMainObject[i].mesh);
-                        currentMainObject.splice(i,1);
-                }
-                currentMainObject = [];
-
-
-            };
-
             function removeChecker() {
-                for(var i=0; i<particleArray.particles.length; i++) {
-                    if(particleArray.particles[i].spiralParticle.mesh.position.z > 2000) {
-                        var particle = particleArray.particles[i].spiralParticle.mesh; //scope.scene.getObjectById(particleArray.particles[i].spiralParticle.geometry.id);
-                        particleArray.particles.splice(i,1);
+                for(var i=0; i<spiralParticleArray.length; i++) {
+                    if(spiralParticleArray[i].object.mesh.position.z > 2000) {
+                        var particle = spiralParticleArray[i].object.mesh; //scope.scene.getObjectById(spiralParticleArray.particles[i].object.geometry.id);
+                        spiralParticleArray.splice(i,1);
                         scope.scene.remove(particle);
-                 //       console.log("removed particle");
                     }
-                    if(particleArray.particles.length < 30) {
+                    if(spiralParticleArray.length < 30) {
                         levelEightActive = false;
-                 //       console.log("LevelEightINACTIVE");
-
                     }
                 }
 
                 for(i=0; i<planeArray.length; i++) {
                     if(planeArray[i].mesh.position.y > 700) {
-                        var plane = planeArray[i].mesh; //scope.scene.getObjectById(planeArray[i].geometry.id);
-            //            console.log(plane);
+                        var plane = planeArray[i].mesh;
                         planeArray.splice(i,1);
                         scope.scene.remove(plane);
-            //            console.log("removed plane");
-
                     }
                 }
 
                 for(i=0; i<backgroundNoiseArray.length; i++) {
                     if(backgroundNoiseArray[i].mesh.position.z > 2000) {
-                        var noise = backgroundNoiseArray[i].mesh; //scope.scene.getObjectById(planeArray[i].geometry.id);
-                        //            console.log(plane);
+                        var noise = backgroundNoiseArray[i].mesh;
                         backgroundNoiseArray.splice(i,1);
                         scope.scene.remove(noise);
-                        //            console.log("removed plane");
+                    }
+                }
 
+                for(i=0; i<continousParticlesArray.length; i++) {
+                    if(continousParticlesArray[i].mesh.position.z > 2000) {
+                        var Cparticle = continousParticlesArray[i].mesh;
+                        continousParticlesArray.splice(i,1);
+                        scope.scene.remove(Cparticle);
                     }
                 }
 
@@ -1869,23 +1967,89 @@ define(["three",
                         scope.scene.remove(octahedron);
                     }
                 }
-
             }
+
+
+
+            /**
+             * Returns a random number between min (inclusive) and max (exclusive)
+             */
+            function getRandomArbitrary(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            /**
+             * converts an RGB value of 0-255 to a HEX value
+             * @param c
+             * @returns {string}
+             */
+            var componentToHex = function (c) {
+                var hex = Math.round(c).toString(16);
+                return hex.count == 1 ? "0" + hex : hex;
+            };
+
+            var rgbToHex = function(r, g, b) {
+                return "0x" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+            };
+
+            /**
+             * Sobald Select Input geklickt wird, lösche alle Objekte aus der Szene,
+             * entleere alle Objektarrays und geh sicher, dass sie tatsächlich leer sind
+             * -schalte alle Switches aus, und entferne die Hauptobjekte, sofern sie nicht
+             * vom children[]-Array gefunden wurden, was vorkommt
+             * -Erstelle ein neues Boden-Objekt und richte die Kamera wieder auf ihre
+             * Ursprungsposition aus
+             */
 
             this.clearCanvas = function() {
                 for (var i = scope.scene.children.length - 1; i >= 0 ; i -- ) {
                     scope.scene.remove(scope.scene.children[ i ]);
                 }
-                objectArray = [];
 
+                clearArray(continousParticlesArray);
+                clearArray(backgroundNoiseArray);
+                clearArray(planeArray);
+                clearArray(TDNoiseArray);
+                clearArray(circleWaveArray);
+                clearArray(pointArray);
+         //       clearArray(curveArray);
+                clearArray(fastRayArray);
+                clearArray(skyRayArray);
+                clearArray(connectingLinesArray);
+                clearArray(orbitalSphereArray);
+                clearArray(currentMainObject);
+
+                for(i=0;i<levelHistory.length; i++) {
+                    levelHistory.splice(i,1);
+                }
+
+                levelHistory = [];
                 backgroundNoiseArray = [];
-                shapeArray = [];
+                pointArray = [];
                 planeArray = [];
                 TDNoiseArray = [];
                 circleWaveArray = [];
-                slowRayArray = [];
-                curveArray = [];
+            //    curveArray = [];
                 currentMainObject = [];
+                fastRayArray = [];
+                skyRayArray = [];
+                connectingLinesArray = [];
+                orbitalSphereArray = [];
+
+                levelZeroActive = false;
+                levelOneActive = false;
+                levelTwoActive = false;
+                levelThreeActive = false;
+                levelFourActive = false;
+                levelFiveActive = false;
+                levelSixActive = false;
+                levelSevenActive = false;
+                levelEightActive = false;
+                levelNineActive = false;
+                levelTenActive = false;
+                levelElevenActive = false;
+
+                pointCounter = 0;
 
                 scope.scene.remove(scope.scene.getObjectByName("fftLinesMesh"));
                 scope.scene.remove(scope.scene.getObjectByName("line1"));
@@ -1893,44 +2057,32 @@ define(["three",
                 scope.scene.remove(scope.scene.getObjectByName("sphereMesh"));
 
                 var floor = new Floor();
-                this.addBufferGeometry(floor, [0,-300,0]);
+                this.addMesh(floor, [0,-300,0]);
 
                 scope.camera.position.set(0,0,2000);
+                scope.camera.lookAt(new THREE.Vector3(0,0,0));
             };
 
-
-
             /**
-             * RAYCASTER
+             * Hilfsmethode zum Entleeren von Objektarrays
+             * @param array
              */
-
-            var raycaster = new THREE.Raycaster();
-
-            var intersectionArray = [];
-
-            function findIntersections() {
-                // find intersections
-
-                var vector = new THREE.Vector3(mouse.x, mouse.y, 1).unproject(scope.camera);
-
-                raycaster.set(scope.camera.position, vector.sub(scope.camera.position).normalize());
-
-                var intersects = raycaster.intersectObjects(scope.scene.children);
-
-                if (intersects.count > 0) {
-
-                    for(var i= 0, j=0;i<intersects.length;i++) {
-                        if(intersects[i].mesh.name == "planeMesh") {
-                            intersectionArray[j] = intersects[i];
+            function clearArray(array) {
+                for(var i=0; i<array.length; i++) {
+                    if(array[i]) {
+                        if(array[i].mesh) {
+                            scope.scene.remove(scope.scene.getObjectByName(array[i].mesh.name));
+                        } else if (array[i].object.mesh) {
+                            scope.scene.remove(scope.scene.getObjectByName(array[i].object.mesh.name));
                         }
                     }
 
+                    array.splice(i,1);
                 }
-
             }
 
         };
 
         return Scene;
 
-    })); // define
+    }));

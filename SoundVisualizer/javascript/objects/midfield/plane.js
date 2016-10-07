@@ -1,6 +1,6 @@
 /* requireJS module definition */
-define(["three", "shaders"],
-    (function(THREE, Shaders) {
+define(["three"],
+    (function(THREE) {
 
         "use strict";
 

@@ -6,7 +6,9 @@ define(["three", "shaders"],
 
         var torusKnot = function () {
             // radius, tube, tubularSegments, radialSegments, p, q
-            this.geometry = new THREE.TorusKnotBufferGeometry( 10, 3, 100, 16 );
+            this.geometry = new THREE.TorusKnotBufferGeometry( 30, 2, 52, 52, 1, 1 );
+
+            console.log("TorusKnot"+ this.geometry.attributes.position.count);
 
             var displacement = new Float32Array(this.geometry.attributes.position.count * 3);
 
@@ -15,8 +17,7 @@ define(["three", "shaders"],
             var uniforms = {
                 amplitude: { value: 1.0 },
                 time: {type: "f", value: 0.0},
-                color: { value: new THREE.Color(0x000000) },
-                texture: {value: new THREE.TextureLoader().load("./textures/arthur.jpg")}
+                color: { value: new THREE.Color(0x000000) }
             };
 
             var attributes = this.geometry.attributes;
@@ -24,8 +25,8 @@ define(["three", "shaders"],
 
             var shaderMaterial = new THREE.ShaderMaterial({
                 uniforms: uniforms,
-                fragmentShader: Shaders.getFragmentShader('sphere'),
-                vertexShader: Shaders.getVertexShader('sphere'),
+                fragmentShader: Shaders.getFragmentShader('central'),
+                vertexShader: Shaders.getVertexShader('central'),
                 wireframe: true
             });
 

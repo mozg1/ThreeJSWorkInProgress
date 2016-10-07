@@ -8,7 +8,7 @@ define(["three", "shaders"],
             this.geometry = new THREE.PlaneBufferGeometry(8192, 6, 80, 16);
 
             var material = new THREE.MeshLambertMaterial( {
-                color: 0xffffff, emissive: 0x00ff00, reflectivity:100,
+                color: 0xffffff,
                 transparent : true,
                 opacity: 0.5
             } );

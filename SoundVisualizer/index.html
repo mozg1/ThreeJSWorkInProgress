@@ -5,13 +5,17 @@
     <title>ThreeJS Sound Visualizer</title>
     <meta about="Alexander Zorin 7. Fachsemester 798493 Medieninformatik FBVI Beuth-Hochschule für Techik Berlin">
 
-    <script data-main="app.js" src="../lib/require.js"></script>
+    <script data-main="visualizer.js" src="../lib/require.js"></script>
     <!--
     <script type="text/javascript" src="https://github.com/dataarts/dat.gui/blob/master/build/dat.gui.min.js"></script>
     <script type="text/javascript" src="https://github.com/jeromeetienne/threex.rendererstats/blob/master/threex.rendererstats.js"></script>
     <script type="text/javascript" src="https://github.com/mrdoob/stats.js/blob/master/build/stats.min.js"></script>
     -->
-    <script type="text/javascript" src="javascript/audioscript/mainaudiohandler.js"></script>
+    <script type="text/javascript" src="javascript/audioscript/mainAudioHandler.js"></script>
+    <script type="text/javascript" src="javascript/audioscript/audioProcessor.js"></script>
+    <script type="text/javascript" src="../lib/stats.min.js"></script>
+
+
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/style.css">
 
 </head>
@@ -21,7 +25,7 @@
 
     <div id="loadingcontent">
         <h3>loading . . .</h3>
-        <h4>This site is best viewed at a resolution of 1920x1080</h4>
+        <h4>This site is best viewed in Google Chrome and Mozilla Firefox at a resolution of 1920x1080</h4>
     </div>
 
         <span id="title">
@@ -46,12 +50,12 @@
             Use Mic
         </button>
         <button id="playNormlicht" class="songButton">
-            Sample Track
+            Play Sample Track
         </button>
     </div>
 
         <span id="impress">
-            <p id="impressText">Built with ThreeJS, RequireJS and JQuery. Music by <a href="https://soundcloud.com/normlicht">Normlicht</a></p>
+            <p id="impressText">Built with Web Audio API, ThreeJS, RequireJS and JQuery. Music and programming by <a href="https://soundcloud.com/normlicht">Normlicht</a></p>
         </span>
 
 </div>
@@ -72,8 +76,13 @@
     <select id="modeSelector">
         <option value="mode80s">80s</option>
         <option value="modeDeepBlue">Deep Blue</option>
-        <option value="modeDarkRed">Dark Red</option>
+        <option value="modeDarkRed">Code Red</option>
     </select>
+
+    <label>
+        <input type="checkbox" id="cameraanimation">
+        Move cam
+    </label>
 
 </div>
 </body>

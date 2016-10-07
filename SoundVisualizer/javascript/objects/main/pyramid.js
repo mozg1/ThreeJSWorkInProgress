@@ -4,13 +4,11 @@ define(["three", "shaders"],
 
         "use strict";
 
-        // http://stackoverflow.com/questions/26418591/how-to-make-a-rectangular-pyramid-in-three-js-r68
-
         var Pyramid = function () {
 
-            var TILE_SIZE = 50;
+            var side = 50;
 
-            this.geometry = new THREE.CylinderBufferGeometry( 1, TILE_SIZE*3, TILE_SIZE*3, 4 );
+            this.geometry = new THREE.CylinderBufferGeometry( 1, side*3,side*3, 4 );
 
             var displacement = new Float32Array(this.geometry.attributes.position.count * 3);
 
@@ -19,15 +17,13 @@ define(["three", "shaders"],
             var uniforms = {
                 amplitude: { value: 1.0 },
                 time: {type: "f", value: 0.0},
-                color: { value: new THREE.Color(0x000000) },
-                texture: {value: new THREE.TextureLoader().load("./textures/arthur.jpg")}
-
+                color: { value: new THREE.Color(0x000000) }
             };
 
             var shaderMaterial = new THREE.ShaderMaterial({
                 uniforms: uniforms,
-                fragmentShader: Shaders.getFragmentShader('sphere'),
-                vertexShader: Shaders.getVertexShader('sphere'),
+                fragmentShader: Shaders.getFragmentShader('central'),
+                vertexShader: Shaders.getVertexShader('central'),
                 wireframe: true
             });
 
